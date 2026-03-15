@@ -150,8 +150,8 @@ function drawCarPreview(pctx, ct, color, scale) {
     pctx.save();
     pctx.scale(s, s);
 
-    // Shadow
-    var shadowOff = bodyStyle === 'suv' ? 5 : 3;
+    // Shadow — heavier vehicles get extra offset
+    var shadowOff = (bodyStyle === 'suv' || bodyStyle === 'truck_heavy' || bodyStyle === 'warrig') ? 5 : 3;
     pctx.fillStyle = 'rgba(0,0,0,.3)';
     pctx.fillRect(-cw/2 + shadowOff, -ch/2 + shadowOff, cw, ch);
 
@@ -188,17 +188,55 @@ function drawCarPreview(pctx, ct, color, scale) {
 
     // Body style extras
     if (bodyStyle === 'sport') {
-        pctx.fillStyle = 'rgba(0,0,0,.6)';
-        pctx.fillRect(-cw/2 - 5, -ch/2 + 1, 5, ch - 2);
+        // Diagonal racing stripe
+        pctx.save();
+        pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, 4); pctx.clip();
+        pctx.fillStyle = 'rgba(255,255,255,.2)';
+        pctx.beginPath();
+        pctx.moveTo(-5, -ch/2); pctx.lineTo(10, -ch/2);
+        pctx.lineTo(-5, ch/2); pctx.lineTo(-20, ch/2);
+        pctx.closePath(); pctx.fill();
+        pctx.restore();
+        // Number circle on roof
+        pctx.fillStyle = '#fff';
+        pctx.beginPath(); pctx.arc(0, 0, 5, 0, Math.PI*2); pctx.fill();
+        pctx.fillStyle = '#111';
+        pctx.font = 'bold 7px Arial'; pctx.textAlign = 'center';
+        pctx.fillText('7', 0.5, 2.5);
+        // Wing spoiler — overlaps tail
+        pctx.fillStyle = '#222';
+        pctx.fillRect(-cw/2 - 3, -ch/2 - 1.5, 8, ch + 3);
         pctx.fillStyle = color;
-        pctx.fillRect(-cw/2 - 4, -ch/2 + 2, 3, ch - 4);
+        pctx.fillRect(-cw/2 - 4, -ch/2 - 3, 10, 3);
+        pctx.fillRect(-cw/2 - 4, ch/2, 10, 3);
+        pctx.fillStyle = '#555';
+        pctx.fillRect(-cw/2 + 2, -ch/2 + 2, 2, 2);
+        pctx.fillRect(-cw/2 + 2, ch/2 - 4, 2, 2);
+        // Twin exhaust glow
+        pctx.fillStyle = '#f80'; pctx.globalAlpha = 0.5;
+        pctx.beginPath(); pctx.arc(-cw/2 - 2, -4, 3, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-cw/2 - 2, 4, 3, 0, Math.PI*2); pctx.fill();
+        pctx.globalAlpha = 1;
+        pctx.fillStyle = '#444';
+        pctx.beginPath(); pctx.arc(-cw/2 - 1, -4, 1.8, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-cw/2 - 1, 4, 1.8, 0, Math.PI*2); pctx.fill();
+
     } else if (bodyStyle === 'suv') {
-        pctx.strokeStyle = 'rgba(180,180,180,.5)'; pctx.lineWidth = 1.5;
-        pctx.beginPath(); pctx.moveTo(-cw/4, -ch/2); pctx.lineTo(cw/4, -ch/2); pctx.stroke();
-        pctx.beginPath(); pctx.moveTo(-cw/4, ch/2); pctx.lineTo(cw/4, ch/2); pctx.stroke();
-        pctx.beginPath(); pctx.moveTo(-cw/6, -ch/2); pctx.lineTo(-cw/6, ch/2); pctx.stroke();
-        pctx.beginPath(); pctx.moveTo(cw/6, -ch/2); pctx.lineTo(cw/6, ch/2); pctx.stroke();
+        // Thick roof rack bars
+        pctx.fillStyle = '#888';
+        pctx.fillRect(-cw/4 - 1, -ch/2 - 2, cw/2 + 2, 2.5);
+        pctx.fillRect(-cw/4 - 1, ch/2 - 0.5, cw/2 + 2, 2.5);
+        pctx.fillRect(-cw/6 - 0.5, -ch/2 - 2, 2, ch + 4);
+        pctx.fillRect(cw/6 - 0.5, -ch/2 - 2, 2, ch + 4);
+        // Wider fenders
+        pctx.fillStyle = 'rgba(0,0,0,.35)';
+        pctx.fillRect(cw/2 - 5, -ch/2 - 1.5, 6, 2);
+        pctx.fillRect(cw/2 - 5, ch/2 - 0.5, 6, 2);
+        pctx.fillRect(-cw/2 - 1, -ch/2 - 1.5, 6, 2);
+        pctx.fillRect(-cw/2 - 1, ch/2 - 0.5, 6, 2);
+
     } else if (bodyStyle === 'truck') {
+        // Bull bar on front
         pctx.strokeStyle = 'rgba(200,200,200,.7)'; pctx.lineWidth = 2.5;
         pctx.beginPath();
         pctx.moveTo(cw/2 + 2, -ch/2 + 1);
@@ -207,6 +245,88 @@ function drawCarPreview(pctx, ct, color, scale) {
         pctx.lineTo(cw/2 + 2, ch/2 - 1);
         pctx.stroke();
         pctx.beginPath(); pctx.moveTo(cw/2, 0); pctx.lineTo(cw/2 + 4, 0); pctx.stroke();
+
+    } else if (bodyStyle === 'truck_heavy') {
+        // Heavy filled ram bar
+        pctx.fillStyle = '#999';
+        pctx.fillRect(cw/2, -ch/2, 5, ch);
+        pctx.fillStyle = '#bbb';
+        pctx.fillRect(cw/2 + 1, -ch/2 + 1, 3, ch - 2);
+        pctx.fillStyle = '#777';
+        pctx.fillRect(cw/2, -2, 5, 4);
+        // Exhaust stacks
+        pctx.fillStyle = '#555';
+        pctx.fillRect(-2, -ch/2 - 4, 3, 5);
+        pctx.fillRect(-2, ch/2 - 1, 3, 5);
+        pctx.fillStyle = '#333';
+        pctx.beginPath(); pctx.arc(-0.5, -ch/2 - 4, 1.5, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-0.5, ch/2 + 4, 1.5, 0, Math.PI*2); pctx.fill();
+        // Smoke hint
+        pctx.fillStyle = 'rgba(100,100,100,.3)';
+        pctx.beginPath(); pctx.arc(-0.5, -ch/2 - 7, 2.5, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-0.5, ch/2 + 7, 2.5, 0, Math.PI*2); pctx.fill();
+
+    } else if (bodyStyle === 'warrig') {
+        // Front plow (V-shaped)
+        pctx.fillStyle = '#aaa';
+        pctx.beginPath();
+        pctx.moveTo(cw/2 + 7, 0);
+        pctx.lineTo(cw/2, -ch/2 - 1);
+        pctx.lineTo(cw/2, ch/2 + 1);
+        pctx.closePath(); pctx.fill();
+        pctx.fillStyle = '#888';
+        pctx.beginPath();
+        pctx.moveTo(cw/2 + 6, 0);
+        pctx.lineTo(cw/2 + 1, -ch/2 + 1);
+        pctx.lineTo(cw/2 + 1, ch/2 - 1);
+        pctx.closePath(); pctx.fill();
+        // Warning stripes on rear bed
+        pctx.save();
+        pctx.beginPath(); pctx.rect(-cw/2, -ch/2, cw/3, ch); pctx.clip();
+        pctx.fillStyle = 'rgba(0,0,0,.25)';
+        for (var i = -30; i < 30; i += 6) {
+            pctx.save(); pctx.translate(i, 0); pctx.rotate(0.7);
+            pctx.fillRect(-1.5, -20, 3, 40);
+            pctx.restore();
+        }
+        pctx.restore();
+        // Armor side plates
+        pctx.fillStyle = 'rgba(80,80,80,.5)';
+        pctx.fillRect(-cw/4, -ch/2 - 2, cw/2, 2.5);
+        pctx.fillRect(-cw/4, ch/2 - 0.5, cw/2, 2.5);
+        // Exhaust stacks
+        pctx.fillStyle = '#555';
+        pctx.fillRect(2, -ch/2 - 3, 2.5, 4);
+        pctx.fillRect(2, ch/2 - 1, 2.5, 4);
+
+    } else if (bodyStyle === 'compact') {
+        // Cover default windshield & lights
+        pctx.fillStyle = color;
+        pctx.fillRect(cw/2 - 15, -ch/2 + 2, 12, ch - 4);
+        pctx.fillRect(-cw/2, -ch/2 + 1, 4, 5);
+        pctx.fillRect(-cw/2, ch/2 - 6, 4, 5);
+        // Dome windshield
+        pctx.fillStyle = 'rgba(120,200,255,.5)';
+        pctx.beginPath(); pctx.arc(4, 0, 8, -1.3, 1.3); pctx.fill();
+        pctx.strokeStyle = 'rgba(200,240,255,.3)'; pctx.lineWidth = 0.5;
+        pctx.beginPath(); pctx.arc(4, 0, 8, -1.3, 1.3); pctx.stroke();
+        // Round headlights
+        pctx.fillStyle = '#ffa';
+        pctx.beginPath(); pctx.arc(cw/2 - 1, -ch/2 + 4, 3, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(cw/2 - 1, ch/2 - 4, 3, 0, Math.PI*2); pctx.fill();
+        pctx.fillStyle = '#fff';
+        pctx.beginPath(); pctx.arc(cw/2, -ch/2 + 3.5, 1, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(cw/2, ch/2 - 3.5, 1, 0, Math.PI*2); pctx.fill();
+        // Round tail lights
+        pctx.fillStyle = '#f44';
+        pctx.beginPath(); pctx.arc(-cw/2 + 1, -ch/2 + 4, 2.5, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-cw/2 + 1, ch/2 - 4, 2.5, 0, Math.PI*2); pctx.fill();
+        // Racing number circle
+        pctx.fillStyle = '#fff';
+        pctx.beginPath(); pctx.arc(-2, 0, 4.5, 0, Math.PI*2); pctx.fill();
+        pctx.fillStyle = '#111';
+        pctx.font = 'bold 6px Arial'; pctx.textAlign = 'center';
+        pctx.fillText('3', -1.5, 2.2);
     }
 
     pctx.restore();

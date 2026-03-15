@@ -11,7 +11,8 @@
 //    id            — Unique short name (used in code, no spaces)
 //    name          — Display name shown to the player
 //    description   — One-line summary of the car's personality
-//    bodyStyle     — Visual style: 'sedan', 'sport', 'suv', 'truck', 'compact'
+//    bodyStyle     — Visual style: 'sedan', 'sport', 'suv', 'truck',
+//                     'truck_heavy', 'warrig', 'compact'
 //    width         — Car width in pixels  (default is 40)
 //    height        — Car height in pixels (default is 22)
 //    hp            — Starting health points (100 = normal)
@@ -79,12 +80,12 @@ const CAR_TYPES = [
         gripBonus:        -0.02,
     },
 
-    // ── Tank ──────────────────────────────────────────────────────
-    // An absolute unit. Slow as molasses, but nearly unstoppable.
+    // ── Ironclad ─────────────────────────────────────────────────
+    // Classic armored brute. Built like a vault on wheels.
     {
         id:               'truck',
-        name:             'Tank',
-        description:      'An absolute unit. Slow as molasses, but nearly unstoppable.',
+        name:             'Ironclad',
+        description:      'Classic armored brute. Built like a vault on wheels.',
         bodyStyle:        'truck',
         width:            40,
         height:           22,
@@ -97,12 +98,48 @@ const CAR_TYPES = [
         gripBonus:        0.0,
     },
 
+    // ── Crusher ──────────────────────────────────────────────────
+    // Heavy ram bar up front. Hits like a freight train.
+    {
+        id:               'truck_heavy',
+        name:             'Crusher',
+        description:      'Heavy ram bar up front. Hits like a freight train.',
+        bodyStyle:        'truck_heavy',
+        width:            42,
+        height:           24,
+        hp:               150,
+        mass:             1.6,
+        maxSpeedMult:     0.78,
+        accelMult:        0.82,
+        turnMult:         0.75,
+        collisionDmgMult: 1.6,
+        gripBonus:        0.0,
+    },
+
+    // ── War Rig ──────────────────────────────────────────────────
+    // Armored war machine with a front plow. The ultimate destroyer.
+    {
+        id:               'warrig',
+        name:             'War Rig',
+        description:      'Armored war machine with a front plow. The ultimate destroyer.',
+        bodyStyle:        'warrig',
+        width:            46,
+        height:           26,
+        hp:               220,
+        mass:             2.0,
+        maxSpeedMult:     0.6,
+        accelMult:        0.6,
+        turnMult:         0.55,
+        collisionDmgMult: 1.8,
+        gripBonus:        -0.04,
+    },
+
     // ── Zippy ─────────────────────────────────────────────────────
-    // Tiny and nimble. Darts around like a go-kart. Paper-thin armor.
+    // Tiny bubble car. Darts around like a go-kart. Paper-thin armor.
     {
         id:               'compact',
         name:             'Zippy',
-        description:      'Tiny and nimble. Darts around like a go-kart. Paper-thin armor.',
+        description:      'Tiny bubble car. Darts around like a go-kart. Paper-thin armor.',
         bodyStyle:        'compact',
         width:            34,
         height:           18,

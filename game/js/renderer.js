@@ -214,8 +214,8 @@ function drawCar(car) {
         ctx.globalAlpha = 1;
     }
 
-    // Shadow — SUV gets extra offset for taller look
-    let shadowOff = bodyStyle === 'suv' ? 5 : 3;
+    // Shadow — heavier vehicles get extra offset for taller look
+    let shadowOff = (bodyStyle === 'suv' || bodyStyle === 'truck_heavy' || bodyStyle === 'warrig') ? 5 : 3;
     ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(-cw/2+shadowOff,-ch/2+shadowOff,cw,ch);
 
     let col = car.color;
@@ -246,19 +246,54 @@ function drawCar(car) {
 
     // === Body style variations ===
     if (bodyStyle === 'sport') {
-        // Spoiler fin on rear
-        ctx.fillStyle='rgba(0,0,0,.6)';
-        ctx.fillRect(-cw/2 - 5, -ch/2 + 1, 5, ch - 2);
+        // Diagonal racing stripe (clipped to body)
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 4); ctx.clip();
+        ctx.fillStyle = 'rgba(255,255,255,.2)';
+        ctx.beginPath();
+        ctx.moveTo(-5, -ch/2); ctx.lineTo(10, -ch/2);
+        ctx.lineTo(-5, ch/2); ctx.lineTo(-20, ch/2);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        // Number circle on roof
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('7', 0.5, 2.5);
+        // Wing spoiler — overlaps tail
+        ctx.fillStyle = '#222';
+        ctx.fillRect(-cw/2 - 3, -ch/2 - 1.5, 8, ch + 3);
         ctx.fillStyle = col;
-        ctx.fillRect(-cw/2 - 4, -ch/2 + 2, 3, ch - 4);
+        ctx.fillRect(-cw/2 - 4, -ch/2 - 3, 10, 3);
+        ctx.fillRect(-cw/2 - 4, ch/2, 10, 3);
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-cw/2 + 2, -ch/2 + 2, 2, 2);
+        ctx.fillRect(-cw/2 + 2, ch/2 - 4, 2, 2);
+        // Twin exhaust glow
+        ctx.fillStyle = '#f80'; ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.arc(-cw/2 - 2, -4, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-cw/2 - 2, 4, 3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#444';
+        ctx.beginPath(); ctx.arc(-cw/2 - 1, -4, 1.8, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-cw/2 - 1, 4, 1.8, 0, Math.PI*2); ctx.fill();
+
     } else if (bodyStyle === 'suv') {
-        // Roof rack line
-        ctx.strokeStyle='rgba(180,180,180,.5)';ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.moveTo(-cw/4, -ch/2);ctx.lineTo(cw/4, -ch/2);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(-cw/4, ch/2);ctx.lineTo(cw/4, ch/2);ctx.stroke();
+        // Thick roof rack bars
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-cw/4 - 1, -ch/2 - 2, cw/2 + 2, 2.5);
+        ctx.fillRect(-cw/4 - 1, ch/2 - 0.5, cw/2 + 2, 2.5);
         // Cross bars
-        ctx.beginPath();ctx.moveTo(-cw/6, -ch/2);ctx.lineTo(-cw/6, ch/2);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(cw/6, -ch/2);ctx.lineTo(cw/6, ch/2);ctx.stroke();
+        ctx.fillRect(-cw/6 - 0.5, -ch/2 - 2, 2, ch + 4);
+        ctx.fillRect(cw/6 - 0.5, -ch/2 - 2, 2, ch + 4);
+        // Wider fenders
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.fillRect(cw/2 - 5, -ch/2 - 1.5, 6, 2);
+        ctx.fillRect(cw/2 - 5, ch/2 - 0.5, 6, 2);
+        ctx.fillRect(-cw/2 - 1, -ch/2 - 1.5, 6, 2);
+        ctx.fillRect(-cw/2 - 1, ch/2 - 0.5, 6, 2);
+
     } else if (bodyStyle === 'truck') {
         // Bull bar on front
         ctx.strokeStyle='rgba(200,200,200,.7)';ctx.lineWidth=2.5;
@@ -268,10 +303,90 @@ function drawCar(car) {
         ctx.lineTo(cw/2 + 4, ch/2 - 1);
         ctx.lineTo(cw/2 + 2, ch/2 - 1);
         ctx.stroke();
-        // Center bull bar strut
         ctx.beginPath();ctx.moveTo(cw/2, 0);ctx.lineTo(cw/2 + 4, 0);ctx.stroke();
+
+    } else if (bodyStyle === 'truck_heavy') {
+        // Heavy filled ram bar
+        ctx.fillStyle = '#999';
+        ctx.fillRect(cw/2, -ch/2, 5, ch);
+        ctx.fillStyle = '#bbb';
+        ctx.fillRect(cw/2 + 1, -ch/2 + 1, 3, ch - 2);
+        ctx.fillStyle = '#777';
+        ctx.fillRect(cw/2, -2, 5, 4);
+        // Exhaust stacks
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-2, -ch/2 - 4, 3, 5);
+        ctx.fillRect(-2, ch/2 - 1, 3, 5);
+        ctx.fillStyle = '#333';
+        ctx.beginPath(); ctx.arc(-0.5, -ch/2 - 4, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-0.5, ch/2 + 4, 1.5, 0, Math.PI*2); ctx.fill();
+        // Smoke hint
+        ctx.fillStyle = 'rgba(100,100,100,.3)';
+        ctx.beginPath(); ctx.arc(-0.5, -ch/2 - 7, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-0.5, ch/2 + 7, 2.5, 0, Math.PI*2); ctx.fill();
+
+    } else if (bodyStyle === 'warrig') {
+        // Front plow (V-shaped)
+        ctx.fillStyle = '#aaa';
+        ctx.beginPath();
+        ctx.moveTo(cw/2 + 7, 0);
+        ctx.lineTo(cw/2, -ch/2 - 1);
+        ctx.lineTo(cw/2, ch/2 + 1);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#888';
+        ctx.beginPath();
+        ctx.moveTo(cw/2 + 6, 0);
+        ctx.lineTo(cw/2 + 1, -ch/2 + 1);
+        ctx.lineTo(cw/2 + 1, ch/2 - 1);
+        ctx.closePath(); ctx.fill();
+        // Warning stripes on rear bed
+        ctx.save();
+        ctx.beginPath(); ctx.rect(-cw/2, -ch/2, cw/3, ch); ctx.clip();
+        ctx.fillStyle = 'rgba(0,0,0,.25)';
+        for (let i = -30; i < 30; i += 6) {
+            ctx.save(); ctx.translate(i, 0); ctx.rotate(0.7);
+            ctx.fillRect(-1.5, -20, 3, 40);
+            ctx.restore();
+        }
+        ctx.restore();
+        // Armor side plates
+        ctx.fillStyle = 'rgba(80,80,80,.5)';
+        ctx.fillRect(-cw/4, -ch/2 - 2, cw/2, 2.5);
+        ctx.fillRect(-cw/4, ch/2 - 0.5, cw/2, 2.5);
+        // Exhaust stacks
+        ctx.fillStyle = '#555';
+        ctx.fillRect(2, -ch/2 - 3, 2.5, 4);
+        ctx.fillRect(2, ch/2 - 1, 2.5, 4);
+
+    } else if (bodyStyle === 'compact') {
+        // Cover default windshield & lights with body color
+        ctx.fillStyle = col;
+        ctx.fillRect(cw/2 - 15, -ch/2 + 2, 12, ch - 4);
+        ctx.fillRect(-cw/2, -ch/2 + 1, 4, 5);
+        ctx.fillRect(-cw/2, ch/2 - 6, 4, 5);
+        // Dome windshield
+        ctx.fillStyle = 'rgba(120,200,255,.5)';
+        ctx.beginPath(); ctx.arc(4, 0, 8, -1.3, 1.3); ctx.fill();
+        ctx.strokeStyle = 'rgba(200,240,255,.3)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.arc(4, 0, 8, -1.3, 1.3); ctx.stroke();
+        // Round headlights
+        ctx.fillStyle = '#ffa';
+        ctx.beginPath(); ctx.arc(cw/2 - 1, -ch/2 + 4, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cw/2 - 1, ch/2 - 4, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(cw/2, -ch/2 + 3.5, 1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cw/2, ch/2 - 3.5, 1, 0, Math.PI*2); ctx.fill();
+        // Round tail lights
+        ctx.fillStyle = '#f44';
+        ctx.beginPath(); ctx.arc(-cw/2 + 1, -ch/2 + 4, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-cw/2 + 1, ch/2 - 4, 2.5, 0, Math.PI*2); ctx.fill();
+        // Racing number circle
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-2, 0, 4.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.font = 'bold 6px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('3', -1.5, 2.2);
     }
-    // 'compact' and 'sedan' (default) — no extra decoration beyond the rounder corners for compact
 
     // Player badge (human players)
     if (car.playerIdx >= 0) {

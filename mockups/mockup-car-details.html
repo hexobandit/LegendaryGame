@@ -346,12 +346,17 @@ const ORG  = '#ff9030';
     ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center';
     ctx.fillText('7', 0.5, 2.5);
 
-    // Wing spoiler
+    // Wing spoiler — overlaps the tail to cover rounded corners
     ctx.fillStyle = '#222';
-    ctx.fillRect(-cw/2 - 6, -ch/2, 6, ch);
+    ctx.fillRect(-cw/2 - 3, -ch/2 - 1.5, 8, ch + 3);
+    // Colored endplates
     ctx.fillStyle = PINK;
-    ctx.fillRect(-cw/2 - 7, -ch/2 - 1, 8, 2.5);
-    ctx.fillRect(-cw/2 - 7, ch/2 - 1.5, 8, 2.5);
+    ctx.fillRect(-cw/2 - 4, -ch/2 - 3, 10, 3);
+    ctx.fillRect(-cw/2 - 4, ch/2, 10, 3);
+    // Support struts
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-cw/2 + 2, -ch/2 + 2, 2, 2);
+    ctx.fillRect(-cw/2 + 2, ch/2 - 4, 2, 2);
 
     // Twin exhaust glow
     ctx.fillStyle = '#f80';
