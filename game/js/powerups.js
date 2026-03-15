@@ -83,8 +83,9 @@ function applyPowerUp(car, pu) {
 
     floatingTexts.push({
         x: car.x, y: car.y - 35,
-        text: pu.label, color: pu.color,
-        alpha: 1, vy: -1, life: 50
+        text: pu.label, color: '#fff',
+        alpha: 1, vy: -1, life: 50,
+        bubble: true, bubbleColor: pu.color
     });
 
     for (let i = 0; i < 10; i++) {

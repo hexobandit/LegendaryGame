@@ -854,6 +854,59 @@ function drawCar(car) {
         ctx.fillStyle = '#555';
         ctx.beginPath(); ctx.arc(-cw/2 - 2, ch/4, 1.2, 0, Math.PI*2); ctx.fill();
 
+    } else if (bodyStyle === 'cop') {
+        // ── COP CAR — black & white livery, light bar, front bumper ──
+        // White hood (front half)
+        ctx.fillStyle = '#eee';
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 4); ctx.clip();
+        ctx.fillRect(2, -ch/2, cw/2, ch);
+        ctx.restore();
+        // Black stripe down center of hood
+        ctx.fillStyle = '#1a1a2e';
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 4); ctx.clip();
+        ctx.fillRect(6, -2.5, cw/2 - 6, 5);
+        ctx.restore();
+        // Police star on hood
+        ctx.save();
+        ctx.translate(cw/4 + 2, 0);
+        ctx.fillStyle = '#cc9900'; ctx.globalAlpha = 0.7;
+        var sr = 3.2, sp = 5;
+        ctx.beginPath();
+        for (var si = 0; si < sp * 2; si++) {
+            var sa = -Math.PI/2 + si * Math.PI / sp;
+            var sd = si % 2 === 0 ? sr : sr * 0.45;
+            if (si === 0) ctx.moveTo(Math.cos(sa)*sd, Math.sin(sa)*sd);
+            else ctx.lineTo(Math.cos(sa)*sd, Math.sin(sa)*sd);
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        // Door line
+        ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(2, -ch/2 + 1); ctx.lineTo(2, ch/2 - 1); ctx.stroke();
+        // Front bumper bar
+        ctx.fillStyle = '#999';
+        ctx.fillRect(cw/2, -ch/2 + 1, 3, ch - 2);
+        ctx.fillStyle = '#bbb';
+        ctx.fillRect(cw/2 + 2, -ch/2 + 2, 2, ch - 4);
+        // Light bar on roof
+        var lightPhase = (performance.now() * 0.006) % (Math.PI * 2);
+        // Left light (red)
+        ctx.fillStyle = Math.sin(lightPhase) > 0 ? '#ff2222' : '#881111';
+        ctx.beginPath(); ctx.arc(-2, -ch/2 - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+        // Right light (blue)
+        ctx.fillStyle = Math.sin(lightPhase) > 0 ? '#1144aa' : '#2266ff';
+        ctx.beginPath(); ctx.arc(-2, ch/2 + 2, 2.5, 0, Math.PI * 2); ctx.fill();
+        // Light bar base
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-5, -ch/2 - 0.5, 6, ch + 1);
+        // Badge/shield on door
+        ctx.fillStyle = '#cc9900'; ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.arc(-5, 0, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
     } else if (bodyStyle === 'schoolbus') {
         // ── SCHOOL BUS — long, flat, iconic ──
         // Window row — many small windows
@@ -955,6 +1008,21 @@ function drawCar(car) {
         ctx.fill();
         ctx.globalAlpha = 1;
     }
+    // Infected glow
+    if (car.infected) {
+        ctx.save();
+        ctx.globalAlpha = 0.25 + Math.sin(performance.now() * 0.008) * 0.15;
+        ctx.fillStyle = '#33ff33';
+        ctx.beginPath(); ctx.arc(car.x, car.y, 28, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // Team indicator dot above health bar
+    if (car.team && typeof TEAM_COLORS !== 'undefined') {
+        ctx.fillStyle = TEAM_COLORS[car.team] || '#fff';
+        ctx.beginPath(); ctx.arc(car.x, car.y - 37, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
     let bw=32,bh=3,bx=car.x-bw/2,by=car.y-31;
     ctx.fillStyle='#333';ctx.fillRect(bx,by,bw,bh);
     let hp=car.health/car.maxHealth;
@@ -1118,13 +1186,6 @@ function drawFloatingTexts() {
             // Text
             ctx.fillStyle='#fff';
             ctx.fillText(f.text, f.x, f.y);
-        } else if (f.big) {
-            ctx.font='bold 20px Arial';
-            ctx.strokeStyle='rgba(0,0,0,0.7)';
-            ctx.lineWidth=3;
-            ctx.strokeText(f.text,f.x,f.y);
-            ctx.fillStyle=f.color;
-            ctx.fillText(f.text,f.x,f.y);
         } else {
             ctx.font='bold 14px Arial';
             ctx.fillStyle=f.color;

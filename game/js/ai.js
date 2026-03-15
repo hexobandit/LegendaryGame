@@ -12,29 +12,80 @@ function updateAI(car, dt) {
     car.aiTimer -= dt;
     let spd = Math.hypot(car.vx, car.vy);
 
+    // Infected mode: override AI behavior
+    var infectedMode = activeMode && activeMode.id && activeMode.id.indexOf('infected') >= 0;
+    // Robbery mode: cops always chase players
+    var robberyMode = activeMode && activeMode.isCops;
+    // CTF mode: chase flag carrier or go to flag
+    var ctfMode = activeMode && activeMode.isCTF;
+
     if (car.aiTimer <= 0) {
         car.aiTimer = 1 + Math.random() * 2;
-        car.aiState = car.health < 25 ? 'flee' : (Math.random() < 0.7 ? 'chase' : 'roam');
+
+        if (ctfMode) {
+            // CTF: if carrying flag, flee; otherwise chase carrier or go to flag
+            car.aiState = (ctfFlag && ctfFlag.carrier === car) ? 'flee' : 'chase';
+        } else if (robberyMode && car.isCop) {
+            // Cop AI: always chase — relentless pursuit
+            car.aiState = 'chase';
+        } else if (infectedMode) {
+            // Infected AI: always chase uninfected targets
+            // Uninfected AI: always flee from infected cars
+            car.aiState = car.infected ? 'chase' : 'flee';
+        } else {
+            car.aiState = car.health < 25 ? 'flee' : (Math.random() < 0.7 ? 'chase' : 'roam');
+        }
+
         if (car.aiState === 'chase') {
-            let best = null, bestD = Infinity;
-            for (let o of cars) {
-                if (o === car || !o.alive) continue;
-                let d = Math.hypot(o.x - car.x, o.y - car.y);
-                if (o.playerIdx >= 0) d *= 0.55; // prefer humans
-                if (d < bestD) { bestD = d; best = o; }
+            if (ctfMode && ctfFlag) {
+                // CTF: chase the flag carrier, or go toward loose flag
+                if (ctfFlag.carrier && ctfFlag.carrier !== car && ctfFlag.carrier.alive) {
+                    car.aiTarget = ctfFlag.carrier;
+                } else {
+                    // No carrier — create a virtual target at flag position
+                    car.aiTarget = { x: ctfFlag.x, y: ctfFlag.y, alive: true };
+                }
+            } else {
+                let best = null, bestD = Infinity;
+                for (let o of cars) {
+                    if (o === car || !o.alive) continue;
+                    // Infected mode: infected only chase uninfected
+                    if (infectedMode && car.infected && o.infected) continue;
+                    // Teams mode: never chase teammates
+                    if (car.team && o.team && car.team === o.team) continue;
+                    // Robbery mode: cops only chase players
+                    if (robberyMode && car.isCop && o.playerIdx < 0) continue;
+                    let d = Math.hypot(o.x - car.x, o.y - car.y);
+                    if (o.playerIdx >= 0) d *= 0.55; // prefer humans
+                    if (d < bestD) { bestD = d; best = o; }
+                }
+                car.aiTarget = best;
             }
-            car.aiTarget = best;
         }
     }
 
     let targetAng = car.angle;
     let targetDist = Infinity;
     if (car.aiState === 'chase' && car.aiTarget?.alive) {
-        targetAng = Math.atan2(car.aiTarget.y - car.y, car.aiTarget.x - car.x);
-        targetDist = Math.hypot(car.aiTarget.x - car.x, car.aiTarget.y - car.y);
+        // Infected mode: stop chasing if target got infected
+        if (infectedMode && car.infected && car.aiTarget.infected) {
+            car.aiTimer = 0; // force re-evaluate next frame
+        } else {
+            targetAng = Math.atan2(car.aiTarget.y - car.y, car.aiTarget.x - car.x);
+            targetDist = Math.hypot(car.aiTarget.x - car.x, car.aiTarget.y - car.y);
+        }
     } else if (car.aiState === 'flee') {
+        // Flee: find nearest threat
         let best = null, bestD = Infinity;
-        for (let o of cars) { if (o===car||!o.alive) continue; let d=Math.hypot(o.x-car.x,o.y-car.y); if(d<bestD){bestD=d;best=o;}}
+        for (let o of cars) {
+            if (o === car || !o.alive) continue;
+            // Infected mode: uninfected only flee from infected cars
+            if (infectedMode && !car.infected && !o.infected) continue;
+            // Teams mode: only flee from enemy team cars
+            if (car.team && o.team && car.team === o.team) continue;
+            let d = Math.hypot(o.x - car.x, o.y - car.y);
+            if (d < bestD) { bestD = d; best = o; }
+        }
         if (best) targetAng = Math.atan2(car.y - best.y, car.x - best.x);
     } else {
         if (Math.random() < 0.02) car.aiSteerDir = (Math.random()-.5)*0.06;
@@ -72,7 +123,8 @@ function updateAI(car, dt) {
     car.prevAngle = car.angle;
 
     // --- AI Nitro usage (cooldown-based) ---
-    if (car.aiState === 'chase' && car.aiTarget?.alive && targetDist < 400
+    var nitroRange = (infectedMode && car.infected) ? 700 : (robberyMode && car.isCop) ? 600 : 400;
+    if (car.aiState === 'chase' && car.aiTarget?.alive && targetDist < nitroRange
         && car.nitro >= CONFIG.nitroMax && car.nitroCooldown <= 0 && !car.nitroActive) {
         car.nitroActive = true;
         car.nitroBurnTimer = CONFIG.nitroBurnFrames + (car.carType?.nitroBonus || 0);
@@ -100,6 +152,10 @@ function updateAI(car, dt) {
 
     // --- AI Power-up speed boost + damage penalty ---
     let speedMult = car.activePowerUp === 'speed' ? 1.35 : 1;
+    // Infected AI gets a speed boost — they're frenzied hunters
+    if (infectedMode && car.infected) speedMult *= 1.15;
+    // Cop AI gets a speed boost — pursuit mode
+    if (robberyMode && car.isCop) speedMult *= 1.1;
     let dmgMult = getDamageMultiplier(car);
 
     let accel = (aiUseNitro ? CONFIG.nitroAccel : CONFIG.autoAccel * (car.carType?.accelMult || 1) * 0.82) * speedMult * dmgMult;

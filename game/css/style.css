@@ -28,6 +28,26 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-
 .mode-btn:hover { transform: scale(1.04); border-color: #888; color: #ddd; }
 .mode-btn.active-single { border-color: #ff6eb4; color: #ff6eb4; background: rgba(255,110,180,0.12); }
 .mode-btn.active-multi { border-color: #6eb4ff; color: #6eb4ff; background: rgba(110,180,255,0.12); }
+.variant-selector { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
+.variant-btn {
+    cursor: pointer; border: 2px solid #444; padding: 6px 16px;
+    font-size: 12px; font-weight: bold; border-radius: 6px;
+    background: rgba(255,255,255,.04); color: #777;
+    letter-spacing: 1px; transition: transform .12s, border-color .12s, color .12s, background .12s;
+}
+.variant-btn:hover { transform: scale(1.04); border-color: #888; color: #ccc; }
+.variant-btn.active { border-color: #fff; color: #fff; background: rgba(255,255,255,.12); }
+.variant-btn .vdesc { display: block; font-size: 9px; color: #666; font-weight: normal; margin-top: 2px; letter-spacing: 0; }
+.variant-btn.active .vdesc { color: #999; }
+.team-picker { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }
+.team-btn {
+    cursor: pointer; border: 2px solid #555; padding: 6px 24px;
+    font-size: 13px; font-weight: bold; border-radius: 6px;
+    background: rgba(255,255,255,.04); letter-spacing: 2px;
+    transition: transform .12s, background .12s;
+}
+.team-btn:hover { transform: scale(1.06); }
+.team-btn.active { border-width: 3px; }
 .player-cols { display: flex; gap: 30px; margin-bottom: 20px; text-align: center; justify-content: center; }
 .player-col { padding: 14px 18px; border-radius: 10px; min-width: 300px; max-width: 360px; }
 .player-col.pink { background: rgba(255,110,180,0.15); border: 1px solid #ff6eb4; }
@@ -79,6 +99,13 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-
     font-size: 20px; font-weight: bold; border-radius: 8px;
     letter-spacing: 2px;
 }
+#pause-overlay .sound-btn {
+    pointer-events: all; cursor: pointer;
+    background: #444; color: #ccc; border: none; padding: 10px 36px;
+    font-size: 15px; font-weight: bold; border-radius: 8px;
+    letter-spacing: 2px; margin-top: 14px;
+}
+#pause-overlay .sound-btn:hover { background: #555; color: #fff; }
 #pause-overlay .menu-btn {
     pointer-events: all; cursor: pointer;
     background: #444; color: #ccc; border: none; padding: 12px 40px;
@@ -93,15 +120,6 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-
     letter-spacing: 1px; margin-top: 14px; transition: background .15s;
 }
 .fullscreen-btn:hover { background: rgba(255,255,255,.25); color: #fff; }
-#ingame-fullscreen-btn {
-    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 150;
-    pointer-events: all; cursor: pointer;
-    background: rgba(0,0,0,.35); color: rgba(255,255,255,.5);
-    border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
-    padding: 4px 8px; font-size: 16px; line-height: 1;
-    transition: background .15s, color .15s;
-}
-#ingame-fullscreen-btn:hover { background: rgba(0,0,0,.6); color: rgba(255,255,255,.8); }
 #setup-panel { display: none; }
 
 /* ── Car Type Picker / Carousel ── */

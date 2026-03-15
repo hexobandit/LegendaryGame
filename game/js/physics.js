@@ -204,7 +204,8 @@ function moveCar(car) {
                 floatingTexts.push({
                     x: car.x, y: car.y - 35,
                     text: 'LANDED!',
-                    color: '#ff4', alpha: 1, vy: -0.6, life: 60
+                    color: '#fff', alpha: 1, vy: -0.6, life: 60,
+                    bubble: true, bubbleColor: '#ff4'
                 });
             }
         }
@@ -441,7 +442,8 @@ function moveCar(car) {
                     floatingTexts.push({
                         x: car.x, y: car.y - 30,
                         text: 'AIR!',
-                        color: '#ff4', alpha: 1, vy: -0.8, life: 50
+                        color: '#fff', alpha: 1, vy: -0.8, life: 50,
+                        bubble: true, bubbleColor: '#ff4'
                     });
                 }
                 break;
@@ -478,8 +480,26 @@ function checkCollisions() {
             let a = cars[i], b = cars[j];
             if (!a.alive || !b.alive) continue;
             if (a.airborne || b.airborne) continue;
+            // Team friendly fire check
+            if (activeMode && activeMode.friendlyFire === false && a.team && b.team && a.team === b.team) continue;
             let dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
             if (dist < 35 && dist > 0) {
+                // Infection spreads on contact
+                if (a.infected !== b.infected && activeMode && activeMode.id.indexOf('infected') >= 0) {
+                    let victim = a.infected ? b : a;
+                    if (!victim.infected) {
+                        victim.infected = true;
+                        victim.color = '#33ff33';
+                        spawnInfectionCloud(victim.x, victim.y);
+                        floatingTexts.push({
+                            x: victim.x, y: victim.y - 45,
+                            text: 'INFECTED!', color: '#fff', alpha: 1, vy: -0.8, life: 120,
+                            bubble: true, bubbleColor: '#33ff33'
+                        });
+                        playSfxThrottled('explode', 100);
+                    }
+                }
+
                 let nx = dx/dist, ny = dy/dist, overlap = 35-dist;
 
                 // Mass-based separation and velocity exchange
@@ -536,55 +556,107 @@ function checkCollisions() {
                         }
                     }
 
-                    floatingTexts.push({
-                        x: cx, y: cy - 20, text: `-${Math.round(dmg)}`,
-                        color: '#ff4', alpha: 1, vy: -0.8, life: 80
-                    });
-
-                    // Impact commentary — severity-based funny texts
+                    // Impact commentary — pick callout based on severity & mode
+                    let callout = null;
+                    let bubCol = '#ff4';
                     let rng = Math.random();
+                    let isCopMode = activeMode && activeMode.isCops;
+                    let isInfMode = activeMode && activeMode.id && activeMode.id.indexOf('infected') >= 0;
+                    let isCTFMode = activeMode && activeMode.isCTF;
                     if (impact > 8 && rng < 0.7) {
-                        // Massive hits — epic callouts
-                        let epic = ['WASTED!', 'OBLITERATED!', 'BULLDOZED!', 'YEETED!', 'DESTRUCTION!',
+                        let epic = isCopMode
+                            ? ['WRECKED!', 'TOTALED!', 'TAKEDOWN!', 'RAMMED!', 'PIT STOP!', 'CODE RED!', 'LIGHTS OUT!', 'DISPATCHED!', 'FLATLINED!', 'TERMINATED!']
+                            : isInfMode
+                            ? ['CONTAMINATED!', 'TOXIC SLAM!', 'BIOHAZARD!', 'MUTATION!', 'OUTBREAK!', 'EPIDEMIC!', 'VIRAL HIT!', 'PLAGUE STRIKE!', 'CONTAGION!', 'PATIENT ZERO!']
+                            : isCTFMode
+                            ? ['FLAG JACKED!', 'FUMBLE!', 'INTERCEPTED!', 'SACKED!', 'FLAG DOWN!', 'TURNOVER!', 'STOLEN!', 'STRIPPED!', 'PICKED OFF!', 'FLAGGED!']
+                            : ['WASTED!', 'OBLITERATED!', 'BULLDOZED!', 'YEETED!', 'DESTRUCTION!',
                             'ANNIHILATED!', 'FATALITY!', 'DECIMATED!', 'VAPORIZED!', 'DELETED!',
                             'SENT TO ORBIT!', 'RIP BOZO!', 'GET REKT!', 'SKILL ISSUE!', 'UNINSTALL!'];
-                        floatingTexts.push({
-                            x: cx, y: cy - 45, text: epic[Math.random() * epic.length | 0],
-                            color: '#ff2222', alpha: 1, vy: -1.0, life: 110,
-                            big: true
-                        });
+                        callout = epic[Math.random() * epic.length | 0];
+                        bubCol = isCopMode ? '#4466ff' : isInfMode ? '#33ff33' : isCTFMode ? '#ffaa00' : '#ff6644';
                     } else if (impact > 5 && rng < 0.55) {
-                        // Heavy hits — aggressive taunts
-                        let heavy = ['CRUNCHED!', 'PANCAKED!', 'BODIED!', 'SLAMMED!', 'BOOM!',
+                        let heavy = isCopMode
+                            ? ['PULL OVER!', 'BUSTED!', 'PURSUIT!', 'ROADBLOCK!', 'SIRENS!', 'BADGE SLAM!', 'CUFFED!', 'JUSTICE!', 'NO ESCAPE!', 'BOOKED!']
+                            : isInfMode
+                            ? ['INFECTED!', 'SPREADING!', 'SICK HIT!', 'TOXIC!', 'MUTATING!', 'GROSS!', 'VIRAL!', 'SPORES!', 'OOZE!', 'SICKLY!']
+                            : isCTFMode
+                            ? ['DROP IT!', 'MY FLAG!', 'GIVE IT!', 'TACKLE!', 'BLITZ!', 'FLAGGED!', 'SNATCH!', 'GRABBED!', 'MINE NOW!', 'HAND OVER!']
+                            : ['CRUNCHED!', 'PANCAKED!', 'BODIED!', 'SLAMMED!', 'BOOM!',
                             'NICE HIT!', 'SAVAGE!', 'BRUTAL!', 'OOF!', 'CRUMPLED!',
                             'TOTALED!', 'BONK!', 'KAPOW!', 'SMASHED!', 'POW!'];
-                        floatingTexts.push({
-                            x: cx, y: cy - 40, text: heavy[Math.random() * heavy.length | 0],
-                            color: '#ffaa22', alpha: 1, vy: -0.9, life: 100
-                        });
+                        callout = heavy[Math.random() * heavy.length | 0];
+                        bubCol = isCopMode ? '#4466ff' : isInfMode ? '#33ff33' : isCTFMode ? '#ffaa00' : '#ffaa22';
                     } else if (impact > 3 && rng < 0.4) {
-                        // Medium hits — reactions
-                        let medium = ['OUCH!', 'YIKES!', 'BONK!', 'BOP!', 'CLANK!',
+                        let medium = isCopMode
+                            ? ['STOP!', 'HALT!', 'FREEZE!', 'SLOW DOWN!', 'VIOLATION!', 'TICKET!', 'SUSPECT!', 'YIELD!']
+                            : isInfMode
+                            ? ['COUGH!', 'SNEEZE!', 'ITCHY!', 'QUEASY!', 'UGHH!', 'YUCK!', 'GROSS!', 'SLIMY!']
+                            : isCTFMode
+                            ? ['GIMME!', 'DIBS!', 'FLAG ME!', 'COMING!', 'NEED IT!', 'YOINK!', 'GOT YA!', 'HEY FLAG!']
+                            : ['OUCH!', 'YIKES!', 'BONK!', 'BOP!', 'CLANK!',
                             'THWACK!', 'DENIED!', 'NOPE!', 'BRUH!', 'ZOINKS!',
                             'WATCH IT!', 'MY PAINT!', 'NOT COOL!', 'EXCUSE ME?!', 'REALLY?!'];
-                        floatingTexts.push({
-                            x: cx, y: cy - 35, text: medium[Math.random() * medium.length | 0],
-                            color: '#ffdd44', alpha: 1, vy: -0.7, life: 90
-                        });
+                        callout = medium[Math.random() * medium.length | 0];
+                        bubCol = isCopMode ? '#6688cc' : isInfMode ? '#66ff66' : isCTFMode ? '#ffcc44' : '#ffdd44';
                     } else if (impact > 1.5 && rng < 0.2) {
-                        // Light taps — mild reactions
-                        let light = ['tap tap', 'boop', 'nudge', 'excuse me', 'beep beep',
+                        let light = isCopMode
+                            ? ['move along', 'license?', 'step out', 'ID please', 'sir...']
+                            : isInfMode
+                            ? ['*cough*', 'achoo', 'ew', 'gross', '*drip*']
+                            : isCTFMode
+                            ? ['flag?', 'mine!', 'dibs', 'coming!', '*vroom*']
+                            : ['tap tap', 'boop', 'nudge', 'excuse me', 'beep beep',
                             'oopsie', 'sorry!', 'my bad', 'lol', '*bonk*'];
+                        callout = light[Math.random() * light.length | 0];
+                        bubCol = isCopMode ? '#8899bb' : isInfMode ? '#99ff99' : isCTFMode ? '#ffdd88' : '#aaddff';
+                    }
+
+                    // Damage number — plain text, color-coded by severity
+                    let dmgNum = Math.round(dmg);
+                    let dmgCol = dmgNum >= 40 ? '#ff4444' : dmgNum >= 25 ? '#ff8844' : dmgNum >= 15 ? '#ffcc44' : '#aaddff';
+                    floatingTexts.push({
+                        x: cx, y: cy - 20, text: '-' + dmgNum,
+                        color: dmgCol, alpha: 1, vy: -0.8, life: 80
+                    });
+
+                    // Callout bubble (if any)
+                    if (callout) {
                         floatingTexts.push({
-                            x: cx, y: cy - 30, text: light[Math.random() * light.length | 0],
-                            color: '#aaddff', alpha: 1, vy: -0.5, life: 80
+                            x: cx, y: cy - 40, text: callout,
+                            color: '#fff', alpha: 1, vy: -0.9, life: 100,
+                            bubble: true, bubbleColor: bubCol
                         });
+                    }
+
+                    // CTF: big hit knocks flag loose
+                    if (ctfFlag && impact > 5) {
+                        if (ctfFlag.carrier === a || ctfFlag.carrier === b) {
+                            var flagHolder = ctfFlag.carrier;
+                            ctfDropFlag();
+                            // Knock flag away from impact
+                            ctfFlag.x = flagHolder.x + (Math.random() - 0.5) * 80;
+                            ctfFlag.y = flagHolder.y + (Math.random() - 0.5) * 80;
+                        }
                     }
 
                     // Occasional swear/reaction bubble on the victim
                     if (impact > 3 && Math.random() < 0.3) {
                         let victim = dA > dB ? a : b;
-                        let swears = ['#@$%!', 'HEY!!', 'OUCH!', '%@#$!', 'ARGH!', 'RUDE!',
+                        let hasFlag = ctfFlag && ctfFlag.carrier === victim;
+                        let swears = isCopMode
+                            ? (victim.isCop
+                                ? ['DISPATCH!', 'BACKUP!', '10-4!', 'SUSPECT!', 'PURSUIT!', 'RUNNER!', 'ENGAGE!', 'COPY THAT!']
+                                : ['OH NO!', 'THE COPS!', 'FLOOR IT!', 'GOTTA GO!', 'NOT TODAY!', 'THEY FOUND ME!', 'LOSE THEM!', 'FASTER!'])
+                            : isInfMode
+                            ? (victim.infected
+                                ? ['BRAINS!', 'HUNGRY!', 'JOIN US!', 'ONE OF US!', 'FRESH MEAT!', '*GROAN*']
+                                : ['STAY BACK!', 'DON\'T TOUCH!', 'EWW!', 'GET AWAY!', 'NO NO NO!', 'QUARANTINE!', 'HELP!', 'I\'M CLEAN!'])
+                            : isCTFMode
+                            ? (hasFlag
+                                ? ['MY FLAG!', 'BACK OFF!', 'NOT YOURS!', 'CAN\'T HAVE IT!', 'MINE MINE!', 'FINDERS KEEPERS!', 'GO AWAY!', 'NO TOUCH!']
+                                : ['GIMME FLAG!', 'WHERE IS IT!', 'I WANT IT!', 'DIBS NEXT!', 'MOVE!', 'OUTTA WAY!', 'NEED FLAG!', 'FLAG ME!'])
+                            : ['#@$%!', 'HEY!!', 'OUCH!', '%@#$!', 'ARGH!', 'RUDE!',
                             'WTF!', '$#@%!', 'OW!!', 'NOOO!', 'WHY?!', 'BRO!!',
                             'DUDE!!', 'COME ON!', 'SERIOUSLY?!', 'I JUST FIXED THAT!',
                             'MY BUMPER!', 'INSURANCE!', 'NOT AGAIN!', 'MOM HELP!'];
@@ -655,6 +727,11 @@ function checkDeath(car) {
         spawnExplosion(car.x, car.y, car.color);
         playSfx('explode');
 
+        // CTF: drop flag on death
+        if (ctfFlag && ctfFlag.carrier === car) {
+            ctfDropFlag();
+        }
+
         if (car.lastHitBy) {
             car.lastHitBy.kills++;
             if (gameMode === 'single' && car.lastHitBy.playerIdx === 0) {
@@ -664,7 +741,8 @@ function checkDeath(car) {
                 floatingTexts.push({
                     x: car.x, y: car.y - 30,
                     text: `+500 DESTROYED ${car.name}!`,
-                    color: car.lastHitBy.color, alpha: 1, vy: -0.5, life: 120
+                    color: '#fff', alpha: 1, vy: -0.5, life: 120,
+                    bubble: true, bubbleColor: car.lastHitBy.color
                 });
             } else if (gameMode === 'multi' && car.lastHitBy.playerIdx >= 0) {
                 // Multiplayer: kill notification
@@ -672,7 +750,8 @@ function checkDeath(car) {
                 floatingTexts.push({
                     x: car.x, y: car.y - 30,
                     text: `\u{1F4A5} ${car.lastHitBy.name} destroyed ${car.name}!`,
-                    color: car.lastHitBy.color, alpha: 1, vy: -0.5, life: 120
+                    color: '#fff', alpha: 1, vy: -0.5, life: 120,
+                    bubble: true, bubbleColor: car.lastHitBy.color
                 });
             }
         }
@@ -680,7 +759,20 @@ function checkDeath(car) {
         // Killer celebration bubble (any car that gets a kill)
         if (car.lastHitBy && car.lastHitBy.alive && Math.random() < 0.5) {
             let killer = car.lastHitBy;
-            let cheers = ['WOOHOO!', 'YEAH!!', 'GET REKT!', 'BOOM!', 'HAHA!', 'EZ!', 'LATER!', 'BYE BYE!', 'CRUSHED!', 'OWNED!', 'TOO EASY!', 'YESSS!'];
+            let isCopM = activeMode && activeMode.isCops;
+            let isInfM = activeMode && activeMode.id && activeMode.id.indexOf('infected') >= 0;
+            let isCTFM = activeMode && activeMode.isCTF;
+            let cheers = isCopM
+                ? (killer.isCop
+                    ? ['SUSPECT DOWN!', 'BOOKED!', '10-4!', 'NEUTRALIZED!', 'JUSTICE!', 'CUFFED!', 'CASE CLOSED!', 'BUSTED!']
+                    : ['ESCAPED!', 'SEE YA!', 'CAN\'T CATCH ME!', 'FREEDOM!', 'TOO SLOW!', 'LATER COPPER!', 'VROOM!', 'LOST THEM!'])
+                : isInfM
+                ? (killer.infected
+                    ? ['JOIN US!', 'ONE MORE!', 'WELCOME!', 'TASTY!', 'FRESH!', 'GOTCHA!', '*SLURP*', 'OURS NOW!']
+                    : ['STAY CLEAN!', 'NOT TODAY!', 'IMMUNE!', 'NOPE!', 'BACK OFF!', 'CLEAN KILL!'])
+                : isCTFM
+                ? ['MY FLAG NOW!', 'DROPPED IT!', 'FUMBLE!', 'FLAG THIEF!', 'YOINK!', 'INTERCEPTED!', 'FLAG SECURED!', 'NICE TRY!']
+                : ['WOOHOO!', 'YEAH!!', 'GET REKT!', 'BOOM!', 'HAHA!', 'EZ!', 'LATER!', 'BYE BYE!', 'CRUSHED!', 'OWNED!', 'TOO EASY!', 'YESSS!'];
             floatingTexts.push({
                 x: killer.x, y: killer.y - 42,
                 text: cheers[Math.random() * cheers.length | 0],
@@ -689,16 +781,19 @@ function checkDeath(car) {
             });
         }
 
-        // Players auto-respawn after 5 seconds
+        // Players auto-respawn after 5 seconds (if mode allows)
         if (car.playerIdx >= 0) {
             car.deaths = (car.deaths || 0) + 1;
-            car.respawnTimer = 300; // 5 seconds at 60fps
-        }
-
-        // Game ends when all AI are destroyed
-        let aiAlive = cars.filter(c => c.playerIdx === -1 && c.alive).length;
-        if (aiAlive === 0) {
-            setTimeout(() => endGame(), 1000);
+            var allowRespawn = !activeMode || activeMode.respawn !== false;
+            if (!allowRespawn && !slomoActive) {
+                // No-respawn mode: trigger epic explosion + slow-mo death
+                spawnEpicExplosion(car.x, car.y, car.color);
+                slomoActive = true;
+                slomoTimer = 0;
+                slomoFade = 0;
+            } else {
+                car.respawnTimer = 300; // 5 seconds at 60fps
+            }
         }
     }
 }

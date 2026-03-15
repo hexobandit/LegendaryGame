@@ -22,7 +22,7 @@ function initIntro() {
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
         introCarX = cvs.width / 2;
-        introCarY = cvs.height * 0.66;
+        introCarY = cvs.height * 0.55;
         generateIntroNoise(cvs.width, cvs.height);
     }
     resizeIntro();

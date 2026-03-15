@@ -19,7 +19,7 @@ const MAPS = [
     {
         id:              'arena',
         name:            'Classic Arena',
-        description:     'The original arena. Green grass, tire walls, four roads.',
+        description:     'Grass, tire walls, roads.',
 
         arenaWidth:      3200,
         arenaHeight:     3200,
@@ -72,7 +72,7 @@ const MAPS = [
     {
         id:              'desert',
         name:            'Desert Oasis',
-        description:     'Sandy dirt trails, a lagoon and palms. Watch your grip.',
+        description:     'Sandy trails and lagoon.',
 
         arenaWidth:      3600,
         arenaHeight:     3600,
@@ -162,7 +162,7 @@ const MAPS = [
     {
         id:              'snow',
         name:            'Frozen Lake',
-        description:     'Icy wilderness with a winding road and a frozen lake. Watch your grip!',
+        description:     'Icy roads, frozen lake.',
 
         arenaWidth:      3200,
         arenaHeight:     3200,
@@ -250,7 +250,7 @@ const MAPS = [
     {
         id:              'parking',
         name:            'Parking Lot',
-        description:     'A tight car park. Smash through everything!',
+        description:     'Tight car park chaos.',
 
         arenaWidth:      2400,
         arenaHeight:     2400,

@@ -3,9 +3,13 @@
 // ================================================================
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 var audioCtx;
-function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+function ensureAudio() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
 
 function playSfx(type) {
+    if (sfxMuted) return;
     ensureAudio();
     const ac = audioCtx;
     const now = ac.currentTime;

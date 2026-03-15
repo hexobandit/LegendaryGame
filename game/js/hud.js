@@ -45,6 +45,11 @@ function drawHUD(car, vx, vy, vw, vh) {
         //  SINGLE PLAYER HUD
         // ═══════════════════════════════════════════════
 
+        // ── Top-left: FPS ──
+        ctx.fillStyle = fpsDisplay >= 50 ? 'rgba(100,255,100,.5)' : fpsDisplay >= 30 ? 'rgba(255,255,100,.5)' : 'rgba(255,80,80,.5)';
+        ctx.font = '11px Courier New'; ctx.textAlign = 'left';
+        ctx.fillText(fpsDisplay + ' FPS', vx + pad, vy + pad + 10);
+
         // ── Top-center: SCORE ──
         var sw = 180, sh = 40;
         var sx = vx + vw / 2 - sw / 2, sy = vy + pad;
@@ -62,16 +67,22 @@ function drawHUD(car, vx, vy, vw, vh) {
         var trx = vx + vw - pad - trw, try_ = vy + pad;
         hudPanel(trx, try_, trw, trh, accent);
 
-        var numAI = 11;
+        var numAI = (activeMode && activeMode.aiCount != null) ? activeMode.aiCount : 11;
         var alive = cars.filter(function(c) { return c.alive && c.playerIdx === -1; }).length;
-        var mins = Math.floor(gameTime / 60), secs = Math.floor(gameTime % 60);
+
+        // Time display: countdown for timed mode, elapsed otherwise
+        var timeLeft = (activeMode && activeMode.timeLimit) ? Math.max(0, activeMode.timeLimit - gameTime) : 0;
+        var displayTime = timeLeft > 0 ? timeLeft : gameTime;
+        var mins = Math.floor(displayTime / 60), secs = Math.floor(displayTime % 60);
         var timeStr = mins + ':' + secs.toString().padStart(2, '0');
+        var timeCol = (timeLeft > 0 && timeLeft < 30) ? '#f44' : (timeLeft > 0 && timeLeft < 60) ? '#ff4' : '#adf';
+        var timeLabel = timeLeft > 0 ? 'LEFT' : 'TIME';
 
         var stats = [
             { label: 'KILLS',   val: car.kills,              col: '#fff' },
             { label: 'DEATHS',  val: car.deaths,             col: '#f88' },
-            { label: 'AI LEFT', val: alive + '/' + numAI,    col: alive > 0 ? '#f84' : '#4f4' },
-            { label: 'TIME',    val: timeStr,                col: '#adf' },
+            { label: (activeMode && activeMode.isCops) ? 'COPS' : (activeMode && activeMode.isCTF) ? 'RIVALS' : 'AI LEFT', val: alive + '/' + numAI, col: alive > 0 ? '#f84' : '#4f4' },
+            { label: timeLabel, val: timeStr,                col: timeCol },
         ];
         for (var i = 0; i < stats.length; i++) {
             var row_y = try_ + 16 + i * 18;
@@ -156,17 +167,51 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.shadowBlur = 0;
         }
 
+        // ── CTF banner ──
+        if (car.alive && ctfFlag && activeMode && activeMode.isCTF) {
+            var isCarrier = ctfFlag.carrier === car;
+            var holdSec = isCarrier ? Math.floor(ctfHoldTimer) : 0;
+            var bannerText = isCarrier ? 'FLAG HOLDER — ' + holdSec + 's' : 'GET THE FLAG!';
+            var bannerCol = isCarrier ? '#ffaa00' : '#aaa';
+            var pulse2 = isCarrier ? (0.5 + Math.sin(performance.now() * 0.008) * 0.2) : 0;
+            if (isCarrier) {
+                ctx.fillStyle = 'rgba(255,170,0,' + pulse2 + ')';
+                ctx.fillRect(vx, vy, vw, 3);
+                ctx.fillRect(vx, vy + vh - 3, vw, 3);
+            }
+            hudPanel(vx + vw / 2 - 80, vy + pad + 56, 160, 22, bannerCol);
+            ctx.fillStyle = bannerCol; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+            ctx.fillText(bannerText, vx + vw / 2, vy + pad + 72);
+        }
+
+        // ── Infected banner (alive but turned) ──
+        if (car.alive && car.infected) {
+            var pulse = 0.4 + Math.sin(performance.now() * 0.006) * 0.15;
+            ctx.fillStyle = 'rgba(30,200,30,' + pulse + ')';
+            ctx.fillRect(vx, vy, vw, 3);
+            ctx.fillRect(vx, vy + vh - 3, vw, 3);
+            hudPanel(vx + vw / 2 - 70, vy + pad + 56, 140, 22, '#3f3');
+            ctx.fillStyle = '#3f3'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+            ctx.fillText('INFECTED — HUNT THEM!', vx + vw / 2, vy + pad + 72);
+        }
+
         // ── Death overlay ──
         if (!car.alive) {
             ctx.fillStyle = 'rgba(0,0,0,.6)';
             ctx.fillRect(vx, vy, vw, vh);
             ctx.shadowColor = '#f44'; ctx.shadowBlur = 20;
             ctx.fillStyle = '#f44'; ctx.font = 'bold 48px Arial'; ctx.textAlign = 'center';
-            ctx.fillText('WRECKED!', vx + vw / 2, vy + vh / 2 - 30);
+            var deathMsg = car.infected ? 'INFECTED!' : (activeMode && activeMode.isCops) ? 'BUSTED!' : 'WRECKED!';
+            ctx.fillText(deathMsg, vx + vw / 2, vy + vh / 2 - 30);
             ctx.shadowBlur = 0;
-            var secLeft = Math.ceil(car.respawnTimer / 60);
+            var allowRespawn = !activeMode || activeMode.respawn !== false;
             ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Arial';
-            ctx.fillText('Respawn in ' + secLeft + '...', vx + vw / 2, vy + vh / 2 + 20);
+            if (allowRespawn && car.respawnTimer > 0) {
+                var secLeft = Math.ceil(car.respawnTimer / 60);
+                ctx.fillText('Respawn in ' + secLeft + '...', vx + vw / 2, vy + vh / 2 + 20);
+            } else if (!allowRespawn) {
+                ctx.fillText('No respawns!', vx + vw / 2, vy + vh / 2 + 20);
+            }
         }
 
         // ── Minimap (bottom-right) ──
@@ -185,12 +230,21 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.fillStyle = pu.color;
             ctx.fillRect(mx - 2, my - 2, 4, 4);
         }
+        // CTF flag on minimap
+        if (ctfFlag) {
+            var fmx = mmx + (ctfFlag.x / mmArenaW) * mmS;
+            var fmy = mmy + (ctfFlag.y / mmArenaH) * mmS;
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath(); ctx.arc(fmx, fmy, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(fmx, fmy, 4, 0, Math.PI * 2); ctx.stroke();
+        }
         for (var ci = 0; ci < cars.length; ci++) {
             var c = cars[ci];
             if (!c.alive) continue;
             var mx = mmx + (c.x / mmArenaW) * mmS;
             var my = mmy + (c.y / mmArenaH) * mmS;
-            ctx.fillStyle = c === car ? '#fff' : '#f44';
+            ctx.fillStyle = c === car ? '#fff' : (c.team && typeof TEAM_COLORS !== 'undefined' ? TEAM_COLORS[c.team] : (c.infected ? '#3f3' : '#f44'));
             var sz = c === car ? 5 : 3;
             ctx.fillRect(mx - sz / 2, my - sz / 2, sz, sz);
         }
@@ -205,6 +259,13 @@ function drawHUD(car, vx, vy, vw, vh) {
         // ═══════════════════════════════════════════════
         //  MULTIPLAYER HUD (per viewport)
         // ═══════════════════════════════════════════════
+
+        // ── FPS (P1 viewport only) ──
+        if (isP1) {
+            ctx.fillStyle = fpsDisplay >= 50 ? 'rgba(100,255,100,.5)' : fpsDisplay >= 30 ? 'rgba(255,255,100,.5)' : 'rgba(255,80,80,.5)';
+            ctx.font = '11px Courier New'; ctx.textAlign = 'right';
+            ctx.fillText(fpsDisplay + ' FPS', vx + vw - pad, vy + pad + 10);
+        }
 
         // ── Top-left: Player name & stats ──
         var tlw = 160, tlh = 70;
@@ -324,11 +385,17 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.fillRect(vx, vy, vw, vh);
             ctx.shadowColor = '#f44'; ctx.shadowBlur = 16;
             ctx.fillStyle = '#f44'; ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
-            ctx.fillText('WRECKED!', vx + vw / 2, vy + vh / 2 - 20);
+            var deathMsg2 = car.infected ? 'INFECTED!' : (activeMode && activeMode.isCops) ? 'BUSTED!' : 'WRECKED!';
+            ctx.fillText(deathMsg2, vx + vw / 2, vy + vh / 2 - 20);
             ctx.shadowBlur = 0;
-            var secLeft = Math.ceil(car.respawnTimer / 60);
+            var allowRespawn2 = !activeMode || activeMode.respawn !== false;
             ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial';
-            ctx.fillText('Respawn in ' + secLeft + '...', vx + vw / 2, vy + vh / 2 + 20);
+            if (allowRespawn2 && car.respawnTimer > 0) {
+                var secLeft2 = Math.ceil(car.respawnTimer / 60);
+                ctx.fillText('Respawn in ' + secLeft2 + '...', vx + vw / 2, vy + vh / 2 + 20);
+            } else if (!allowRespawn2) {
+                ctx.fillText('No respawns!', vx + vw / 2, vy + vh / 2 + 20);
+            }
         }
 
         // ── Minimap (bottom-right) ──
@@ -347,12 +414,21 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.fillStyle = pu.color;
             ctx.fillRect(mx - 2, my - 2, 4, 4);
         }
+        // CTF flag on minimap
+        if (ctfFlag) {
+            var fmx = mmx + (ctfFlag.x / mmArenaW) * mmS;
+            var fmy = mmy + (ctfFlag.y / mmArenaH) * mmS;
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath(); ctx.arc(fmx, fmy, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(fmx, fmy, 3, 0, Math.PI * 2); ctx.stroke();
+        }
         for (var ci = 0; ci < cars.length; ci++) {
             var c = cars[ci];
             if (!c.alive) continue;
             var mx = mmx + (c.x / mmArenaW) * mmS;
             var my = mmy + (c.y / mmArenaH) * mmS;
-            ctx.fillStyle = c === car ? '#fff' : c.playerIdx >= 0 ? c.color : '#f44';
+            ctx.fillStyle = c === car ? '#fff' : (c.team && typeof TEAM_COLORS !== 'undefined' ? TEAM_COLORS[c.team] : (c.infected ? '#3f3' : (c.playerIdx >= 0 ? c.color : '#f44')));
             var sz = c === car ? 4 : 2.5;
             ctx.fillRect(mx - sz / 2, my - sz / 2, sz, sz);
         }

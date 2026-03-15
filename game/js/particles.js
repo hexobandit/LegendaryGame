@@ -30,6 +30,69 @@ function spawnExplosion(x,y,color) {
     for (let i=0;i<20;i++){let a=Math.random()*Math.PI*2,s=1+Math.random()*3;particles.push(mkParticle(x,y,Math.cos(a)*s,Math.sin(a)*s,'#333',12+Math.random()*15,.01));}
     for (let i=0;i<12;i++) debris.push({x,y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,angle:Math.random()*Math.PI*2,spin:(Math.random()-.5)*.3,size:4+Math.random()*8,color:Math.random()<.5?color:'#444',life:80+Math.random()*80});
 }
+function spawnEpicExplosion(x, y, color) {
+    // Massive fire burst
+    for (let i = 0; i < 80; i++) {
+        let a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 10;
+        particles.push(mkParticle(x, y, Math.cos(a) * s, Math.sin(a) * s,
+            ['#f00','#f60','#f80','#ff0','#fff','#faa'][Math.random()*6|0],
+            6 + Math.random() * 14, 0.012));
+    }
+    // Heavy smoke ring
+    for (let i = 0; i < 40; i++) {
+        let a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 4;
+        particles.push(mkParticle(x, y, Math.cos(a) * s, Math.sin(a) * s,
+            ['#333','#555','#444'][Math.random()*3|0], 15 + Math.random() * 20, 0.006));
+    }
+    // Shrapnel debris
+    for (let i = 0; i < 24; i++) {
+        debris.push({
+            x, y,
+            vx: (Math.random() - .5) * 12, vy: (Math.random() - .5) * 12,
+            angle: Math.random() * Math.PI * 2, spin: (Math.random() - .5) * .4,
+            size: 3 + Math.random() * 10,
+            color: Math.random() < .4 ? color : ['#444','#888','#666'][Math.random()*3|0],
+            life: 120 + Math.random() * 120
+        });
+    }
+    // Secondary delayed sparks
+    for (let i = 0; i < 30; i++) {
+        let a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 5;
+        particles.push(mkParticle(
+            x + (Math.random() - .5) * 30, y + (Math.random() - .5) * 30,
+            Math.cos(a) * s, Math.sin(a) * s,
+            '#ff4', 3 + Math.random() * 5, 0.015));
+    }
+}
+
+function spawnInfectionCloud(x, y) {
+    // Toxic green cloud burst
+    for (let i = 0; i < 25; i++) {
+        let a = Math.random() * Math.PI * 2, s = 0.5 + Math.random() * 2.5;
+        particles.push(mkParticle(x + (Math.random() - .5) * 20, y + (Math.random() - .5) * 20,
+            Math.cos(a) * s, Math.sin(a) * s,
+            ['#33ff33', '#22cc22', '#66ff44', '#44ff66', '#88ff33'][Math.random() * 5 | 0],
+            10 + Math.random() * 18, 0.008 + Math.random() * 0.008));
+    }
+    // Radioactive sparks
+    for (let i = 0; i < 15; i++) {
+        let a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 5;
+        particles.push(mkParticle(x, y,
+            Math.cos(a) * s, Math.sin(a) * s,
+            ['#aaff33', '#ffff33', '#33ff88'][Math.random() * 3 | 0],
+            2 + Math.random() * 4, 0.03 + Math.random() * 0.03));
+    }
+    // Toxic debris bits
+    for (let i = 0; i < 6; i++) {
+        debris.push({
+            x: x, y: y,
+            vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4,
+            angle: Math.random() * Math.PI * 2, spin: (Math.random() - .5) * .2,
+            size: 3 + Math.random() * 5, color: '#33ff33',
+            life: 50 + Math.random() * 50
+        });
+    }
+}
 function updateFX() {
     for (let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.alpha-=p.decay;p.size*=.99;if(p.alpha<=0)particles.splice(i,1);}
     for (let i = skidMarks.length - 1; i >= 0; i--) {

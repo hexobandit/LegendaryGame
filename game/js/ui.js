@@ -4,8 +4,95 @@
 
 var selectedMap = 'arena';  // default map id
 
+function resolveActiveMode() {
+    var suffix = gameMode === 'single' ? '-single' : '-multi';
+    setActiveMode(gameVariant + suffix);
+}
+
+function buildTeamPicker(container, playerNum) {
+    var sel = playerNum === 1 ? selectedTeamP1 : selectedTeamP2;
+    container.innerHTML = '<span>Pick your team:</span><div class="team-picker" id="team-picker-p' + playerNum + '"></div>';
+    var row = container.querySelector('.team-picker');
+    ['red', 'blue'].forEach(function(team) {
+        var btn = document.createElement('button');
+        btn.className = 'team-btn' + (sel === team ? ' active' : '');
+        btn.style.borderColor = TEAM_COLORS[team];
+        btn.style.color = TEAM_COLORS[team];
+        if (sel === team) btn.style.background = TEAM_COLORS[team] + '33';
+        btn.textContent = team === 'red' ? 'RED' : 'BLUE';
+        btn.onclick = function() {
+            if (playerNum === 1) selectedTeamP1 = team;
+            else selectedTeamP2 = team;
+            // Update button states
+            row.querySelectorAll('.team-btn').forEach(function(b) {
+                b.classList.remove('active');
+                b.style.background = 'rgba(255,255,255,.04)';
+            });
+            btn.classList.add('active');
+            btn.style.background = TEAM_COLORS[team] + '33';
+            // Update player column border/title to match team
+            var col = document.getElementById('p' + playerNum + '-col');
+            var title = document.getElementById('p' + playerNum + '-title');
+            if (col) { col.style.borderColor = TEAM_COLORS[team]; col.style.background = TEAM_COLORS[team] + '22'; }
+            if (title) title.style.color = TEAM_COLORS[team];
+        };
+        row.appendChild(btn);
+    });
+}
+
+function updateColorPickerForVariant() {
+    var isTeams = gameVariant === 'teams';
+    // P1 color picker
+    var p1Row = document.querySelector('#p1-col .color-picker-row');
+    if (p1Row) {
+        if (isTeams) {
+            buildTeamPicker(p1Row, 1);
+        } else {
+            p1Row.innerHTML = '<span>Pick your color:</span><div class="color-swatches" id="p1-swatches"></div>';
+        }
+    }
+    // P2 color picker (multi only)
+    var p2Row = document.querySelector('#p2-col .color-picker-row');
+    if (p2Row) {
+        if (isTeams) {
+            buildTeamPicker(p2Row, 2);
+        } else {
+            p2Row.innerHTML = '<span>Pick your color:</span><div class="color-swatches" id="p2-swatches"></div>';
+        }
+    }
+    // Rebuild swatches if not teams
+    if (!isTeams) buildSwatches();
+}
+
+function buildVariantSelector() {
+    var row = document.getElementById('variant-selector');
+    if (!row) return;
+    var variants = ['normal', 'hardcore', 'timed', 'teams', 'infected', 'robbery', 'ctf'];
+    var suffix = gameMode === 'single' ? '-single' : '-multi';
+    row.innerHTML = '';
+    variants.forEach(function(v) {
+        var mode = GAME_MODES[v + suffix];
+        if (!mode) return;
+        var btn = document.createElement('button');
+        btn.className = 'variant-btn' + (v === gameVariant ? ' active' : '');
+        btn.innerHTML = mode.label + '<span class="vdesc">' + mode.description + '</span>';
+        btn.onclick = function() {
+            gameVariant = v;
+            resolveActiveMode();
+            row.querySelectorAll('.variant-btn').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            updateColorPickerForVariant();
+            // Update sub-note
+            var subNote = document.getElementById('sub-note-text');
+            if (subNote) subNote.textContent = mode.description;
+        };
+        row.appendChild(btn);
+    });
+}
+
 function selectMode(mode) {
     gameMode = mode;
+    resolveActiveMode();
     var btnSingle = document.getElementById('btn-single');
     var btnMulti = document.getElementById('btn-multi');
     var panel = document.getElementById('setup-panel');
@@ -32,7 +119,7 @@ function selectMode(mode) {
                     </div>
                 </div>
             </div>`;
-        subNote.textContent = 'Auto-throttle is ON \u2014 just steer & smash! Destroy all 11 AI opponents to win.';
+        subNote.textContent = (activeMode && activeMode.description) || 'Auto-throttle is ON \u2014 just steer & smash!';
     } else {
         panel.innerHTML = `
             <div class="player-cols">
@@ -65,10 +152,12 @@ function selectMode(mode) {
                     </div>
                 </div>
             </div>`;
-        subNote.textContent = 'Auto-throttle is ON \u2014 just steer & smash!';
+        subNote.textContent = (activeMode && activeMode.description) || 'Auto-throttle is ON \u2014 just steer & smash!';
     }
     panel.style.display = 'block';
+    buildVariantSelector();
     buildSwatches();
+    updateColorPickerForVariant();
     buildCarTypePickers();
     buildMapPicker();
 }
@@ -410,6 +499,55 @@ function drawCarPreview(pctx, ct, color, scale) {
         // Roof tint
         pctx.fillStyle = 'rgba(0,0,0,.1)';
         pctx.fillRect(-cw/3, -ch/2 + 4, cw * 0.6, ch - 8);
+
+    } else if (bodyStyle === 'cop') {
+        // White hood (front half)
+        pctx.fillStyle = '#eee';
+        pctx.save();
+        pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, 4); pctx.clip();
+        pctx.fillRect(2, -ch/2, cw/2, ch);
+        pctx.restore();
+        // Black stripe down center of hood
+        pctx.fillStyle = '#1a1a2e';
+        pctx.save();
+        pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, 4); pctx.clip();
+        pctx.fillRect(6, -2.5, cw/2 - 6, 5);
+        pctx.restore();
+        // Police star on hood
+        pctx.save();
+        pctx.translate(cw/4 + 2, 0);
+        pctx.fillStyle = '#cc9900'; pctx.globalAlpha = 0.7;
+        var sr = 3.2, sp = 5;
+        pctx.beginPath();
+        for (var si = 0; si < sp * 2; si++) {
+            var sa = -Math.PI/2 + si * Math.PI / sp;
+            var sd = si % 2 === 0 ? sr : sr * 0.45;
+            if (si === 0) pctx.moveTo(Math.cos(sa)*sd, Math.sin(sa)*sd);
+            else pctx.lineTo(Math.cos(sa)*sd, Math.sin(sa)*sd);
+        }
+        pctx.closePath(); pctx.fill();
+        pctx.globalAlpha = 1;
+        pctx.restore();
+        // Door line
+        pctx.strokeStyle = 'rgba(0,0,0,.25)'; pctx.lineWidth = 0.8;
+        pctx.beginPath(); pctx.moveTo(2, -ch/2 + 1); pctx.lineTo(2, ch/2 - 1); pctx.stroke();
+        // Front bumper bar
+        pctx.fillStyle = '#999';
+        pctx.fillRect(cw/2, -ch/2 + 1, 3, ch - 2);
+        pctx.fillStyle = '#bbb';
+        pctx.fillRect(cw/2 + 2, -ch/2 + 2, 2, ch - 4);
+        // Light bar
+        pctx.fillStyle = '#ff2222';
+        pctx.beginPath(); pctx.arc(-2, -ch/2 - 2, 2.5, 0, Math.PI * 2); pctx.fill();
+        pctx.fillStyle = '#2266ff';
+        pctx.beginPath(); pctx.arc(-2, ch/2 + 2, 2.5, 0, Math.PI * 2); pctx.fill();
+        // Light bar base
+        pctx.fillStyle = '#444';
+        pctx.fillRect(-5, -ch/2 - 0.5, 6, ch + 1);
+        // Badge
+        pctx.fillStyle = '#cc9900'; pctx.globalAlpha = 0.6;
+        pctx.beginPath(); pctx.arc(-5, 0, 3, 0, Math.PI * 2); pctx.fill();
+        pctx.globalAlpha = 1;
     }
 
     pctx.restore();
@@ -450,7 +588,10 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
     if (!container) return;
     container.innerHTML = '';
 
-    var idx = startIdx;
+    var pickableCars = CAR_TYPES;
+
+    var idx = Math.min(startIdx, pickableCars.length - 1);
+    if (idx < 0) idx = 0;
     var color = playerId === 'p1' ? P1_COLOR : P2_COLOR;
 
     // Wrapper
@@ -492,7 +633,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
     container.appendChild(wrapper);
 
     // Build dots
-    CAR_TYPES.forEach(function(ct, i) {
+    pickableCars.forEach(function(ct, i) {
         var dot = document.createElement('div');
         dot.className = 'car-dot' + (i === idx ? ' active' : '');
         dot.onclick = function() { idx = i; update(); };
@@ -500,7 +641,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
     });
 
     function update() {
-        var ct = CAR_TYPES[idx];
+        var ct = pickableCars[idx];
         onSelect(ct);
 
         // Redraw preview
@@ -540,11 +681,11 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
     }
 
     arrowL.onclick = function() {
-        idx = (idx - 1 + CAR_TYPES.length) % CAR_TYPES.length;
+        idx = (idx - 1 + pickableCars.length) % pickableCars.length;
         update();
     };
     arrowR.onclick = function() {
-        idx = (idx + 1) % CAR_TYPES.length;
+        idx = (idx + 1) % pickableCars.length;
         update();
     };
 
@@ -554,7 +695,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
     // Store updater so color changes can refresh the preview
     container._refreshPreview = function(newColor) {
         color = newColor;
-        var ct = CAR_TYPES[idx];
+        var ct = pickableCars[idx];
         var pctx = cvs.getContext('2d');
         pctx.clearRect(0, 0, cvs.width, cvs.height);
         pctx.save();
@@ -604,7 +745,6 @@ function showStartScreen() {
     document.getElementById('game-over-screen').style.display = 'none';
     document.getElementById('pause-overlay').style.display = 'none';
     document.getElementById('start-screen').style.display = 'flex';
-    document.getElementById('ingame-fullscreen-btn').style.display = 'none';
     introActive = false;
     paused = false;
     selectMode(gameMode);
@@ -615,11 +755,10 @@ function startGame() {
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';
     document.getElementById('pause-overlay').style.display = 'none';
-    document.getElementById('ingame-fullscreen-btn').style.display = 'block';
-
     // Resolve selected map
     currentMap = MAPS.find(function(m) { return m.id === selectedMap; }) || MAPS[0];
 
+    resolveActiveMode();
     ensureAudio();
     gameState = 'countdown';
     countdownVal = 3;
@@ -628,6 +767,8 @@ function startGame() {
     score = 0;
     particles = []; skidMarks = []; debris = []; floatingTexts = [];
     powerUps = []; powerUpSpawnTimer = 0; breakables = [];
+    slomoActive = false; slomoTimer = 0; slomoFade = 0;
+    ctfFlag = null; ctfScores = {}; ctfHoldTimer = 0; ctfBonusTimer = 0;
     generateTerrain();
     spawnCars();
 }
@@ -636,14 +777,27 @@ function endGame() {
     gameState = 'gameover';
     var title = document.getElementById('go-title');
 
+    // Use mode registry for results when available
+    if (activeMode && activeMode.results) {
+        var res = activeMode.results();
+        playSfx(res.sfx);
+        title.textContent = res.title;
+        title.style.color = res.titleColor;
+    }
+
+    // Stats display — still per-layout since HTML structure differs
+    var mins = Math.floor(gameTime / 60);
+    var secs = Math.floor(gameTime % 60);
+    var timeStr = mins + ':' + secs.toString().padStart(2, '0');
+
     if (gameMode === 'single') {
         var p = cars[0];
-        var playerWon = p.alive || cars.filter(function(c) { return c.playerIdx === -1 && c.alive; }).length === 0;
-        if (playerWon) { playSfx('win'); title.textContent = 'YOU WIN!'; title.style.color = '#4f4'; }
-        else { playSfx('lose'); title.textContent = 'GAME OVER'; title.style.color = '#f44'; }
-
-        var mins = Math.floor(gameTime / 60);
-        var secs = Math.floor(gameTime % 60);
+        // Fallback title if no activeMode
+        if (!activeMode) {
+            var playerWon = p.alive || cars.filter(function(c) { return c.playerIdx === -1 && c.alive; }).length === 0;
+            if (playerWon) { playSfx('win'); title.textContent = 'YOU WIN!'; title.style.color = '#4f4'; }
+            else { playSfx('lose'); title.textContent = 'GAME OVER'; title.style.color = '#f44'; }
+        }
         document.getElementById('game-over-stats').innerHTML =
             '<div style="color:' + P1_COLOR + '">' +
             '<b>Final Score: ' + score + '</b><br><br>' +
@@ -651,27 +805,25 @@ function endGame() {
             'Deaths: ' + p.deaths + '<br>' +
             'Hits: ' + p.hits + '<br>' +
             'Damage Dealt: ' + Math.round(p.damageDealt) + '<br>' +
-            'Time Survived: ' + mins + ':' + secs.toString().padStart(2, '0') +
+            'Time Survived: ' + timeStr +
             '</div>';
     } else {
         var p1 = cars[0], p2 = cars[1];
-        var winner;
-        if (p1.kills > p2.kills) winner = 'P1';
-        else if (p2.kills > p1.kills) winner = 'P2';
-        else if (p1.deaths < p2.deaths) winner = 'P1';
-        else if (p2.deaths < p1.deaths) winner = 'P2';
-        else if (p1.damageDealt > p2.damageDealt) winner = 'P1';
-        else if (p2.damageDealt > p1.damageDealt) winner = 'P2';
-        else winner = 'TIE';
-
-        if (winner !== 'TIE') playSfx('win'); else playSfx('lose');
-
-        if (winner === 'TIE') { title.textContent = "IT'S A TIE!"; title.style.color = '#aaa'; }
-        else if (winner === 'P1') { title.textContent = p1.name + ' WINS!'; title.style.color = P1_COLOR; }
-        else { title.textContent = p2.name + ' WINS!'; title.style.color = P2_COLOR; }
-
-        var mins = Math.floor(gameTime / 60);
-        var secs = Math.floor(gameTime % 60);
+        // Fallback title if no activeMode
+        if (!activeMode) {
+            var winner;
+            if (p1.kills > p2.kills) winner = 'P1';
+            else if (p2.kills > p1.kills) winner = 'P2';
+            else if (p1.deaths < p2.deaths) winner = 'P1';
+            else if (p2.deaths < p1.deaths) winner = 'P2';
+            else if (p1.damageDealt > p2.damageDealt) winner = 'P1';
+            else if (p2.damageDealt > p1.damageDealt) winner = 'P2';
+            else winner = 'TIE';
+            if (winner !== 'TIE') playSfx('win'); else playSfx('lose');
+            if (winner === 'TIE') { title.textContent = "IT'S A TIE!"; title.style.color = '#aaa'; }
+            else if (winner === 'P1') { title.textContent = p1.name + ' WINS!'; title.style.color = P1_COLOR; }
+            else { title.textContent = p2.name + ' WINS!'; title.style.color = P2_COLOR; }
+        }
         document.getElementById('game-over-stats').innerHTML =
             '<div style="display:flex;gap:60px;justify-content:center">' +
             '<div style="color:' + P1_COLOR + '">' +
@@ -689,7 +841,7 @@ function endGame() {
             'Damage: ' + Math.round(p2.damageDealt) +
             '</div>' +
             '</div>' +
-            '<br>Time: ' + mins + ':' + secs.toString().padStart(2, '0');
+            '<br>Time: ' + timeStr;
     }
     document.getElementById('game-over-screen').style.display = 'flex';
 }

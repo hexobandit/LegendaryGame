@@ -12,6 +12,12 @@ function toggleFullscreen() {
     }
 }
 
+function toggleSound() {
+    sfxMuted = !sfxMuted;
+    var btn = document.getElementById('sound-toggle-btn');
+    if (btn) btn.textContent = sfxMuted ? 'SOUND: OFF' : 'SOUND: ON';
+}
+
 function togglePause() {
     if (gameState === 'playing') {
         gameState = 'paused';

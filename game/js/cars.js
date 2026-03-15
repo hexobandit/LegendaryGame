@@ -206,4 +206,22 @@ const CAR_TYPES = [
         gripBonus:        -0.06,
     },
 
+    // ── Cop Car ──────────────────────────────────────────────────
+    // Police interceptor. Fast, tough, and relentless.
+    {
+        id:               'cop',
+        name:             'Cop Car',
+        description:      'Police interceptor. Fast, tough, and relentless.',
+        bodyStyle:        'cop',
+        width:            42,
+        height:           22,
+        hp:               130,
+        mass:             1.3,
+        maxSpeedMult:     1.1,
+        accelMult:        1.05,
+        turnMult:         0.95,
+        collisionDmgMult: 1.4,
+        gripBonus:        0.01,
+    },
+
 ];

@@ -17,6 +17,11 @@ const CAR_NAMES = [
     'BRUISER', 'DEMON', 'HAVOC', 'FURY',
     'BRAWLER', 'VANDAL', 'CHAOS'
 ];
+const COP_NAMES = [
+    'SGT. JONES', 'OFC. SMITH', 'DET. CLARK', 'CPT. REED',
+    'OFC. DIAZ', 'LT. BAKER', 'SGT. WOLFE', 'OFC. NASH',
+    'DET. STONE', 'CPT. GRANT', 'OFC. HUNT', 'LT. CROSS'
+];
 
 /**
  * Create a single car object.
@@ -49,7 +54,8 @@ function createCar(x, y, angle, color, name, playerIdx, carType) {
         respawnTimer: 0, deaths: 0,
         activePowerUp: null, powerUpTimer: 0,
         airborne: false, jumpT: 0, jumpDuration: 0, jumpHeight: 0,
-        jumpVx: 0, jumpVy: 0, lastRamp: null
+        jumpVx: 0, jumpVy: 0, lastRamp: null,
+        team: null, infected: false, isCop: false
     };
 }
 
@@ -79,38 +85,33 @@ function spawnCars() {
     var p1Type = selectedCarTypeP1 || defaultType;
     var p2Type = selectedCarTypeP2 || defaultType;
 
-    if (gameMode === 'single') {
-        // Single player: 1 player + 11 AI
+    // Use mode registry for counts if available
+    var numPlayers = (activeMode && activeMode.playerCount) || (gameMode === 'single' ? 1 : 2);
+    var numAI = (activeMode && activeMode.aiCount != null) ? activeMode.aiCount : (gameMode === 'single' ? 11 : 10);
+
+    if (numPlayers === 1) {
         cars.push(createCar(cx, cy, -Math.PI / 2, P1_COLOR, 'PLAYER', 0, p1Type));
-        var numAI = 11;
-        for (var i = 0; i < numAI; i++) {
-            var ang = (i / numAI) * Math.PI * 2;
-            var dist = sr + Math.random() * (sr * 1.1);
-            var aiType = (typeof CAR_TYPES !== 'undefined' && CAR_TYPES.length > 0)
-                ? CAR_TYPES[Math.random() * CAR_TYPES.length | 0] : null;
-            cars.push(createCar(
-                cx + Math.cos(ang) * dist,
-                cy + Math.sin(ang) * dist,
-                ang + Math.PI,
-                CAR_COLORS[i + 2], CAR_NAMES[i + 2], -1, aiType
-            ));
-        }
     } else {
-        // Multiplayer: 2 players + 10 AI
         cars.push(createCar(cx - 120, cy, -Math.PI / 2, P1_COLOR, CAR_NAMES[0], 0, p1Type));
         cars.push(createCar(cx + 120, cy, -Math.PI / 2, P2_COLOR, CAR_NAMES[1], 1, p2Type));
-        var numAI = 10;
-        for (var i = 0; i < numAI; i++) {
-            var ang = (i / numAI) * Math.PI * 2;
-            var dist = sr + Math.random() * (sr * 0.85);
-            var aiType = (typeof CAR_TYPES !== 'undefined' && CAR_TYPES.length > 0)
-                ? CAR_TYPES[Math.random() * CAR_TYPES.length | 0] : null;
-            cars.push(createCar(
-                cx + Math.cos(ang) * dist,
-                cy + Math.sin(ang) * dist,
-                ang + Math.PI,
-                CAR_COLORS[i + 2], CAR_NAMES[i + 2], -1, aiType
-            ));
-        }
     }
+
+    for (var i = 0; i < numAI; i++) {
+        var ang = (i / numAI) * Math.PI * 2;
+        var dist = sr + Math.random() * (sr * (numPlayers === 1 ? 1.1 : 0.85));
+        var aiType = (typeof CAR_TYPES !== 'undefined' && CAR_TYPES.length > 0)
+            ? CAR_TYPES[Math.random() * CAR_TYPES.length | 0] : null;
+        cars.push(createCar(
+            cx + Math.cos(ang) * dist,
+            cy + Math.sin(ang) * dist,
+            ang + Math.PI,
+            CAR_COLORS[(i + 2) % CAR_COLORS.length],
+            CAR_NAMES[(i + 2) % CAR_NAMES.length],
+            -1, aiType
+        ));
+    }
+
+    // Mode-specific post-spawn setup (teams, infected, etc.)
+    if (activeMode && activeMode.assignTeams) activeMode.assignTeams();
+    if (activeMode && activeMode.setup) activeMode.setup();
 }
