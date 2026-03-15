@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings Mockup — NFS Underground Style</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+body {
+    background: #0a0a0a;
+    color: #fff;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+}
+.bg {
+    position: fixed; inset: 0;
+    background: linear-gradient(135deg, #0a0a12 0%, #0d1a2a 40%, #0a0a12 100%);
+    z-index: 0;
+}
+.bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,150,255,.03) 3px, rgba(0,150,255,.03) 4px);
+}
+.bg::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40%;
+    background: linear-gradient(to top, rgba(0,100,255,.08), transparent);
+}
+
+.container {
+    position: relative; z-index: 1;
+    display: flex; height: 100vh;
+}
+
+/* Left nav */
+.nav {
+    width: 280px; background: rgba(0,0,0,.7);
+    border-right: 2px solid rgba(0,120,255,.3);
+    padding: 40px 0; display: flex; flex-direction: column;
+}
+.nav-title {
+    font-size: 11px; letter-spacing: 6px; color: #0af;
+    padding: 0 24px 30px; border-bottom: 1px solid rgba(0,120,255,.2);
+    text-transform: uppercase;
+}
+.nav-item {
+    padding: 16px 24px; cursor: pointer;
+    font-size: 12px; letter-spacing: 3px;
+    color: #556; transition: all .2s;
+    border-left: 3px solid transparent;
+    text-transform: uppercase;
+}
+.nav-item:hover { color: #0af; background: rgba(0,120,255,.05); }
+.nav-item.active {
+    color: #0af; border-left-color: #0af;
+    background: rgba(0,120,255,.1);
+    text-shadow: 0 0 20px rgba(0,170,255,.5);
+}
+
+/* Main content */
+.main {
+    flex: 1; padding: 50px 60px; overflow-y: auto;
+}
+.page-title {
+    font-size: 28px; font-weight: 900; letter-spacing: 4px;
+    color: #fff; margin-bottom: 8px;
+    text-shadow: 0 0 30px rgba(0,170,255,.4);
+}
+.page-sub {
+    font-size: 10px; letter-spacing: 4px; color: #445;
+    margin-bottom: 40px; text-transform: uppercase;
+}
+
+.section {
+    margin-bottom: 36px;
+}
+.section-title {
+    font-size: 10px; letter-spacing: 5px; color: #0af;
+    margin-bottom: 16px; text-transform: uppercase;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(0,120,255,.15);
+}
+
+.setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; margin-bottom: 4px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid rgba(255,255,255,.04);
+    border-radius: 4px; transition: all .2s;
+}
+.setting-row:hover {
+    background: rgba(0,120,255,.06);
+    border-color: rgba(0,120,255,.15);
+}
+.setting-label {
+    font-size: 12px; letter-spacing: 2px; color: #aab;
+}
+.setting-desc {
+    font-size: 9px; color: #445; margin-top: 4px; letter-spacing: 1px;
+}
+
+/* Toggle */
+.toggle {
+    width: 52px; height: 26px; border-radius: 13px;
+    background: #1a1a2a; border: 2px solid #334;
+    position: relative; cursor: pointer; transition: all .3s;
+}
+.toggle.on { background: rgba(0,120,255,.3); border-color: #0af; }
+.toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #556; transition: all .3s;
+}
+.toggle.on::after { left: 29px; background: #0af; box-shadow: 0 0 12px #0af; }
+
+/* Slider */
+.slider-wrap { display: flex; align-items: center; gap: 14px; }
+.slider {
+    width: 180px; height: 6px; border-radius: 3px;
+    background: #1a1a2a; position: relative; cursor: pointer;
+}
+.slider-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #0066ff, #00ccff);
+    box-shadow: 0 0 10px rgba(0,170,255,.3);
+}
+.slider-thumb {
+    position: absolute; top: -5px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; border: 2px solid #0af;
+    box-shadow: 0 0 8px rgba(0,170,255,.5);
+}
+.slider-val {
+    font-size: 13px; color: #0af; min-width: 36px; text-align: right;
+    font-weight: 700;
+}
+
+/* Selector */
+.selector {
+    display: flex; gap: 4px;
+}
+.sel-opt {
+    padding: 6px 16px; font-size: 10px; letter-spacing: 2px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 3px; cursor: pointer; color: #556; transition: all .2s;
+    font-family: inherit;
+}
+.sel-opt.active {
+    background: rgba(0,120,255,.2); border-color: #0af; color: #0af;
+    box-shadow: 0 0 10px rgba(0,170,255,.2);
+}
+
+/* Bottom bar */
+.bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 60px; background: rgba(0,0,0,.8);
+    border-top: 1px solid rgba(0,120,255,.2);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 40px; gap: 16px; z-index: 10;
+}
+.btn {
+    padding: 10px 28px; font-family: inherit;
+    font-size: 11px; letter-spacing: 3px; cursor: pointer;
+    border: 1px solid; border-radius: 3px; transition: all .2s;
+    text-transform: uppercase;
+}
+.btn-ghost { background: transparent; color: #556; border-color: #334; }
+.btn-ghost:hover { color: #aab; border-color: #556; }
+.btn-primary { background: rgba(0,120,255,.2); color: #0af; border-color: #0af; }
+.btn-primary:hover { background: rgba(0,120,255,.35); box-shadow: 0 0 20px rgba(0,170,255,.3); }
+
+/* Neon accent lines */
+.neon-line {
+    position: fixed; top: 0; left: 280px; right: 0; height: 2px;
+    background: linear-gradient(90deg, #0af, transparent 80%);
+    z-index: 5; opacity: .6;
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="neon-line"></div>
+<div class="container">
+    <div class="nav">
+        <div class="nav-title">Settings</div>
+        <div class="nav-item active">Gameplay</div>
+        <div class="nav-item">Audio</div>
+        <div class="nav-item">Controls</div>
+        <div class="nav-item">Display</div>
+        <div class="nav-item">Accessibility</div>
+    </div>
+    <div class="main">
+        <div class="page-title">GAMEPLAY</div>
+        <div class="page-sub">Tune your destruction derby experience</div>
+
+        <div class="section">
+            <div class="section-title">General</div>
+            <div class="setting-row">
+                <div><div class="setting-label">AI Difficulty</div><div class="setting-desc">How aggressive the AI opponents drive</div></div>
+                <div class="selector">
+                    <div class="sel-opt">Easy</div>
+                    <div class="sel-opt active">Normal</div>
+                    <div class="sel-opt">Hard</div>
+                    <div class="sel-opt">Insane</div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">AI Count</div><div class="setting-desc">Number of AI opponents in the arena</div></div>
+                <div class="slider-wrap">
+                    <div class="slider"><div class="slider-fill" style="width:73%"></div><div class="slider-thumb" style="left:calc(73% - 8px)"></div></div>
+                    <div class="slider-val">11</div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Auto Throttle</div><div class="setting-desc">Car accelerates automatically — focus on steering</div></div>
+                <div class="toggle on"></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Camera Shake</div><div class="setting-desc">Shake intensity on impacts</div></div>
+                <div class="slider-wrap">
+                    <div class="slider"><div class="slider-fill" style="width:60%"></div><div class="slider-thumb" style="left:calc(60% - 8px)"></div></div>
+                    <div class="slider-val">60%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Combat</div>
+            <div class="setting-row">
+                <div><div class="setting-label">Friendly Fire</div><div class="setting-desc">Teammates can damage each other</div></div>
+                <div class="toggle"></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Power-up Frequency</div><div class="setting-desc">How often power-ups spawn on the map</div></div>
+                <div class="selector">
+                    <div class="sel-opt">Rare</div>
+                    <div class="sel-opt active">Normal</div>
+                    <div class="sel-opt">Frequent</div>
+                    <div class="sel-opt">Chaos</div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Collision Damage</div><div class="setting-desc">Damage multiplier for car-to-car collisions</div></div>
+                <div class="slider-wrap">
+                    <div class="slider"><div class="slider-fill" style="width:50%"></div><div class="slider-thumb" style="left:calc(50% - 8px)"></div></div>
+                    <div class="slider-val">1.0x</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">HUD</div>
+            <div class="setting-row">
+                <div><div class="setting-label">Show Minimap</div><div class="setting-desc">Display minimap in corner of screen</div></div>
+                <div class="toggle on"></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Show FPS Counter</div><div class="setting-desc">Display frame rate in corner</div></div>
+                <div class="toggle on"></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Floating Text</div><div class="setting-desc">Show damage numbers and callouts</div></div>
+                <div class="selector">
+                    <div class="sel-opt">Off</div>
+                    <div class="sel-opt">Minimal</div>
+                    <div class="sel-opt active">Full</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="bottom-bar">
+    <button class="btn btn-ghost">Reset Defaults</button>
+    <button class="btn btn-primary">Apply</button>
+</div>
+</body>
+</html>

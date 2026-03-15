@@ -128,6 +128,7 @@ function loop(ts) {
     lastTime = ts;
 
     // FPS counter
+    if (fpsLastTime === 0) fpsLastTime = ts;
     fpsFrames++;
     if (ts - fpsLastTime >= 1000) {
         fpsDisplay = fpsFrames;

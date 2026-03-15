@@ -25,6 +25,7 @@ function togglePause() {
     } else if (gameState === 'paused') {
         gameState = 'playing';
         document.getElementById('pause-overlay').style.display = 'none';
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     }
 }
 
@@ -37,12 +38,14 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // When browser exits fullscreen (Escape in fullscreen bypasses keydown),
-// pause the game and try to lock Escape key if supported.
+// just pause the game and resume audio.
 document.addEventListener('fullscreenchange', function() {
     if (!document.fullscreenElement && gameState === 'playing') {
-        // Browser exited fullscreen via Escape — pause and re-enter fullscreen
         togglePause();
-        document.documentElement.requestFullscreen().catch(function(){});
+    }
+    // Always ensure audio stays alive after fullscreen transitions
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
     }
 });
 

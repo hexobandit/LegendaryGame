@@ -561,7 +561,7 @@ function checkCollisions() {
                     let isCopMode = activeMode && activeMode.isCops;
                     let isInfMode = activeMode && activeMode.id && activeMode.id.indexOf('infected') >= 0;
                     let isCTFMode = activeMode && activeMode.isCTF;
-                    if (impact > 8 && rng < 0.7) {
+                    if (impact > 8 && rng < 0.35) {
                         let epic = isCopMode
                             ? ['WRECKED!', 'TOTALED!', 'TAKEDOWN!', 'RAMMED!', 'PIT STOP!', 'CODE RED!', 'LIGHTS OUT!', 'DISPATCHED!', 'FLATLINED!', 'TERMINATED!']
                             : isInfMode
@@ -573,7 +573,7 @@ function checkCollisions() {
                             'SENT TO ORBIT!', 'RIP BOZO!', 'GET REKT!', 'SKILL ISSUE!', 'UNINSTALL!'];
                         callout = epic[Math.random() * epic.length | 0];
                         bubCol = isCopMode ? '#4466ff' : isInfMode ? '#33ff33' : isCTFMode ? '#ffaa00' : '#ff6644';
-                    } else if (impact > 5 && rng < 0.55) {
+                    } else if (impact > 5 && rng < 0.28) {
                         let heavy = isCopMode
                             ? ['PULL OVER!', 'BUSTED!', 'PURSUIT!', 'ROADBLOCK!', 'SIRENS!', 'BADGE SLAM!', 'CUFFED!', 'JUSTICE!', 'NO ESCAPE!', 'BOOKED!']
                             : isInfMode
@@ -585,7 +585,7 @@ function checkCollisions() {
                             'TOTALED!', 'BONK!', 'KAPOW!', 'SMASHED!', 'POW!'];
                         callout = heavy[Math.random() * heavy.length | 0];
                         bubCol = isCopMode ? '#4466ff' : isInfMode ? '#33ff33' : isCTFMode ? '#ffaa00' : '#ffaa22';
-                    } else if (impact > 3 && rng < 0.4) {
+                    } else if (impact > 3 && rng < 0.2) {
                         let medium = isCopMode
                             ? ['STOP!', 'HALT!', 'FREEZE!', 'SLOW DOWN!', 'VIOLATION!', 'TICKET!', 'SUSPECT!', 'YIELD!']
                             : isInfMode
@@ -597,7 +597,7 @@ function checkCollisions() {
                             'WATCH IT!', 'MY PAINT!', 'NOT COOL!', 'EXCUSE ME?!', 'REALLY?!'];
                         callout = medium[Math.random() * medium.length | 0];
                         bubCol = isCopMode ? '#6688cc' : isInfMode ? '#66ff66' : isCTFMode ? '#ffcc44' : '#ffdd44';
-                    } else if (impact > 1.5 && rng < 0.2) {
+                    } else if (impact > 1.5 && rng < 0.1) {
                         let light = isCopMode
                             ? ['move along', 'license?', 'step out', 'ID please', 'sir...']
                             : isInfMode
@@ -639,7 +639,7 @@ function checkCollisions() {
                     }
 
                     // Occasional swear/reaction bubble on the victim
-                    if (impact > 3 && Math.random() < 0.3) {
+                    if (impact > 3 && Math.random() < 0.15) {
                         let victim = dA > dB ? a : b;
                         let hasFlag = ctfFlag && ctfFlag.carrier === victim;
                         let swears = isCopMode
