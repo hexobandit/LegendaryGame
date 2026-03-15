@@ -8,6 +8,7 @@
 
 function updatePlayer(car) {
     if (!car.alive) return;
+    if (car.airborne) return; // No control while airborne
 
     let left, right, brake, nitroKey, handbrakeKey;
 
@@ -132,7 +133,12 @@ function updatePlayer(car) {
     applyFriction(car, car.handbrake);
 
     spd = Math.hypot(car.vx, car.vy);
-    if (spd > maxSpd) { car.vx = car.vx/spd*maxSpd; car.vy = car.vy/spd*maxSpd; }
+    if (spd > maxSpd) {
+        var newSpd = spd * 0.97;
+        if (newSpd < maxSpd) newSpd = maxSpd;
+        car.vx = car.vx / spd * newSpd;
+        car.vy = car.vy / spd * newSpd;
+    }
 
     // Drift FX — handbrake
     if (car.handbrake && spd > 3) {

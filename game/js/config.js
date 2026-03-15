@@ -56,9 +56,29 @@ var CONFIG = {
     // ── Bushes ──
     bushSlowdown:   0.92,   // Per-frame speed mult when in a bush
 
+    // ── Surface: Ice ──
+    iceFriction:    0.992,  // Almost no rolling drag
+    iceGrip:        0.97,   // Nearly zero lateral grip
+
+    // ── Surface: Sand Trap ──
+    sandTrapFriction: 0.90, // Extreme drag
+    sandTrapGrip:   0.85,   // Moderate grip
+
+    // ── Barrel Explosion ──
+    barrelBlastRadius: 120,
+    barrelBlastDamage: 20,
+
     // ── Bumps ──
     bumpBounce:     3.0,    // Upward kick strength from bumps
     bumpSpinChance: 0.3,    // Chance of brief spin on bump hit
+
+    // ── Jumps / Ramps ──
+    jumpMinSpeed:   3.0,    // Minimum speed to trigger a jump
+    jumpHeightMin:  0.2,    // Min jump height (scale factor) at low speed
+    jumpHeightMax:  0.8,    // Max jump height at nitro speed
+    jumpDurMin:     0.4,    // Min jump duration (seconds) at low speed
+    jumpDurMax:     1.0,    // Max jump duration at nitro speed
+    jumpLandingLoss: 0.85,  // Speed multiplied on landing
 };
 
 // ── Fixed constants (not usually tweaked) ──
@@ -71,5 +91,5 @@ const PLAYER_COLOR_OPTIONS = [
     '#ff6eb4', '#ff3388', '#ff4466', '#e03030', '#ff6030',
     '#ff9030', '#ffcc00', '#88dd22', '#30c030', '#20ccaa',
     '#30c0c0', '#6eb4ff', '#3060e0', '#6060ff', '#a060ff',
-    '#c040c0', '#e0e0e0', '#ffaacc', '#aaffdd', '#ffe066'
+    '#c040c0', '#e0e0e0', '#111111', '#ffaacc', '#ffe066'
 ];

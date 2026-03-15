@@ -18,6 +18,7 @@ function renderWorld(camX, camY) {
     drawSkidMarks();
     drawWalls();
     drawObstacles();
+    drawBreakables();
     drawBushes();
     drawDebris();
     for (var i = 0; i < cars.length; i++) {
@@ -37,6 +38,7 @@ function renderWorld(camX, camY) {
     }
     drawPowerUps();
     for (var i = 0; i < cars.length; i++) if (cars[i].alive) drawCar(cars[i]);
+    drawPalmFronds();
     drawParticles();
     drawFloatingTexts();
 }
@@ -96,6 +98,7 @@ function loop(ts) {
         for (var i = 0; i < cars.length; i++) moveCar(cars[i]);
         checkCollisions();
         updatePowerUps();
+        updateBreakables();
 
         // Respawn timer for dead players
         for (var i = 0; i < cars.length; i++) {

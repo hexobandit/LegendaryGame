@@ -1,323 +1,367 @@
 // ================================================================
 //  HUD (drawn on-canvas per viewport)
-//  Extracted from destruction-derby.html
+//  Score, HP, Speed, Nitro, Minimap — styled to match the game
 // ================================================================
+
+// ── Helpers ──
+function hudRoundRect(x, y, w, h, r) {
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+}
+function hudPanel(x, y, w, h, accent) {
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    hudRoundRect(x, y, w, h, 6);
+    ctx.strokeStyle = accent || 'rgba(255,255,255,.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.stroke();
+}
+function hudBar(x, y, w, h, pct, col1, col2, bg) {
+    // Background
+    ctx.fillStyle = bg || '#1a1a1a';
+    hudRoundRect(x, y, w, h, h / 2);
+    // Fill
+    if (pct > 0) {
+        var fw = Math.max(h, w * Math.min(1, pct));
+        var grad = ctx.createLinearGradient(x, 0, x + fw, 0);
+        grad.addColorStop(0, col1); grad.addColorStop(1, col2);
+        ctx.fillStyle = grad;
+        hudRoundRect(x, y, fw, h, h / 2);
+    }
+}
 
 function drawHUD(car, vx, vy, vw, vh) {
     ctx.save();
-    ctx.beginPath(); ctx.rect(vx,vy,vw,vh); ctx.clip();
+    ctx.beginPath(); ctx.rect(vx, vy, vw, vh); ctx.clip();
 
-    const pad = gameMode === 'single' ? 14 : 12;
-    const isP1 = car.playerIdx === 0;
-    const accent = isP1 ? P1_COLOR : P2_COLOR;
+    var pad = gameMode === 'single' ? 14 : 12;
+    var isP1 = car.playerIdx === 0;
+    var accent = isP1 ? P1_COLOR : P2_COLOR;
 
-    // Use map-aware arena dimensions for minimap scaling
-    let mmArenaW = (typeof currentMap !== 'undefined' && currentMap.arenaWidth) ? currentMap.arenaWidth : ARENA_W;
-    let mmArenaH = (typeof currentMap !== 'undefined' && currentMap.arenaHeight) ? currentMap.arenaHeight : ARENA_H;
+    // Map-aware arena dimensions for minimap
+    var mmArenaW = (typeof currentMap !== 'undefined' && currentMap.arenaWidth) ? currentMap.arenaWidth : ARENA_W;
+    var mmArenaH = (typeof currentMap !== 'undefined' && currentMap.arenaHeight) ? currentMap.arenaHeight : ARENA_H;
 
     if (gameMode === 'single') {
-        // ======= SINGLE PLAYER HUD =======
+        // ═══════════════════════════════════════════════
+        //  SINGLE PLAYER HUD
+        // ═══════════════════════════════════════════════
 
-        // --- Top-left: Controls reminder ---
-        let clx = vx+pad, cly = vy+pad;
-        ctx.fillStyle='rgba(0,0,0,.55)';
-        ctx.fillRect(clx, cly, 148, 90);
-        ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=1;
-        ctx.strokeRect(clx, cly, 148, 90);
-        ctx.fillStyle='#777'; ctx.font='10px Arial'; ctx.textAlign='left';
-        ctx.fillText('A/D or \u2190/\u2192  Steer', clx+8, cly+14);
-        ctx.fillText('S or \u2193        Brake', clx+8, cly+28);
-        ctx.fillText('W or \u2191        Nitro', clx+8, cly+42);
-        ctx.fillText('Space         Handbrake', clx+8, cly+56);
-        ctx.fillText('R             Reset', clx+8, cly+70);
-        ctx.fillText('ESC           Pause', clx+8, cly+84);
+        // ── Top-center: SCORE ──
+        var sw = 180, sh = 40;
+        var sx = vx + vw / 2 - sw / 2, sy = vy + pad;
+        hudPanel(sx, sy, sw, sh, '#ff4');
+        // Glow
+        ctx.shadowColor = '#ff4'; ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ff4'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('SCORE', sx + sw / 2, sy + 14);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Courier New';
+        ctx.fillText(score, sx + sw / 2, sy + 34);
 
-        // --- Top-right: Stats panel (score, kills, deaths, AI left, timer) ---
-        let trw = 190, trh = 112;
-        let trx = vx+vw - pad - trw, tr_y = vy+pad;
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(trx, tr_y, trw, trh);
-        ctx.strokeStyle=accent; ctx.lineWidth=1;
-        ctx.strokeRect(trx, tr_y, trw, trh);
+        // ── Top-right: Stats (kills, deaths, AI, time) ──
+        var trw = 160, trh = 88;
+        var trx = vx + vw - pad - trw, try_ = vy + pad;
+        hudPanel(trx, try_, trw, trh, accent);
 
-        ctx.fillStyle='#ff4'; ctx.font='bold 18px Courier New'; ctx.textAlign='left';
-        ctx.fillText(`SCORE: ${score}`, trx+10, tr_y+22);
+        var numAI = 11;
+        var alive = cars.filter(function(c) { return c.alive && c.playerIdx === -1; }).length;
+        var mins = Math.floor(gameTime / 60), secs = Math.floor(gameTime % 60);
+        var timeStr = mins + ':' + secs.toString().padStart(2, '0');
 
-        let numAI = 11;
-        let alive = cars.filter(c=>c.alive && c.playerIdx === -1).length;
-        ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
-        ctx.fillText('KILLS ', trx+10, tr_y+44);
-        ctx.fillStyle='#fff'; ctx.fillText(car.kills, trx+90, tr_y+44);
+        var stats = [
+            { label: 'KILLS',   val: car.kills,              col: '#fff' },
+            { label: 'DEATHS',  val: car.deaths,             col: '#f88' },
+            { label: 'AI LEFT', val: alive + '/' + numAI,    col: alive > 0 ? '#f84' : '#4f4' },
+            { label: 'TIME',    val: timeStr,                col: '#adf' },
+        ];
+        for (var i = 0; i < stats.length; i++) {
+            var row_y = try_ + 16 + i * 18;
+            ctx.fillStyle = '#777'; ctx.font = '11px Arial'; ctx.textAlign = 'left';
+            ctx.fillText(stats[i].label, trx + 10, row_y);
+            ctx.fillStyle = stats[i].col; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'right';
+            ctx.fillText(stats[i].val, trx + trw - 10, row_y);
+        }
 
-        ctx.fillStyle='#aaa';
-        ctx.fillText('DEATHS', trx+10, tr_y+60);
-        ctx.fillStyle='#fff'; ctx.fillText(car.deaths, trx+90, tr_y+60);
+        // ── Bottom-left: Speed + Nitro ──
+        var blw = 160, blh = 72;
+        var blx = vx + pad, bly = vy + vh - pad - blh;
+        hudPanel(blx, bly, blw, blh, accent);
 
-        ctx.fillStyle='#aaa';
-        ctx.fillText('AI LEFT', trx+10, tr_y+76);
-        ctx.fillStyle = alive > 0 ? '#f84' : '#4f4';
-        ctx.fillText(`${alive}/${numAI}`, trx+90, tr_y+76);
+        var speed = Math.round(car.speed * 20);
+        // Speed number — large
+        ctx.fillStyle = '#4ff'; ctx.font = 'bold 32px Courier New'; ctx.textAlign = 'left';
+        ctx.fillText(speed, blx + 10, bly + 32);
+        // Unit
+        ctx.fillStyle = '#556'; ctx.font = 'bold 11px Arial';
+        ctx.fillText('KMH', blx + 100, bly + 32);
 
-        let mins = Math.floor(gameTime/60), secs = Math.floor(gameTime%60);
-        ctx.fillStyle='#aaa';
-        ctx.fillText('TIME  ', trx+10, tr_y+96);
-        ctx.fillStyle='#fff';
-        ctx.fillText(`${mins}:${secs.toString().padStart(2,'0')}`, trx+90, tr_y+96);
+        // Speed bar (thin)
+        var maxDisplaySpd = Math.round(CONFIG.nitroMaxSpeed * 20);
+        var spdPct = Math.min(speed / maxDisplaySpd, 1);
+        var spdCol = speed > 150 ? '#f44' : speed > 100 ? '#ff4' : '#4ff';
+        hudBar(blx + 10, bly + 40, blw - 20, 5, spdPct, spdCol, spdCol);
 
-        // --- Bottom-left: Speed + Nitro ---
-        let blx = vx+pad, bly = vy+vh - pad - 70;
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(blx, bly, 170, 70);
-        ctx.strokeStyle=accent; ctx.lineWidth=1;
-        ctx.strokeRect(blx, bly, 170, 70);
-
-        let speed = Math.round(car.speed * 20);
-        ctx.fillStyle='#4ff'; ctx.font='bold 28px Courier New'; ctx.textAlign='left';
-        ctx.fillText(speed, blx+10, bly+30);
-        ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
-        ctx.fillText('KMH', blx+90, bly+30);
-
-        // Nitro bar (cooldown-based)
-        ctx.fillStyle='#222'; ctx.fillRect(blx+10, bly+40, 150, 10);
-        let nitroLabel, nitroBarW, nitroCol1, nitroCol2;
+        // Nitro bar
+        var nitroLabel, nitroBarPct, nitroCol1, nitroCol2;
         if (car.nitroActive) {
-            nitroBarW = 150 * (car.nitroBurnTimer / CONFIG.nitroBurnFrames);
+            nitroBarPct = car.nitroBurnTimer / CONFIG.nitroBurnFrames;
             nitroCol1 = '#ff8800'; nitroCol2 = '#ffcc00';
             nitroLabel = 'BURN ' + Math.ceil(car.nitroBurnTimer / 60) + 's';
         } else if (car.nitroCooldown > 0) {
-            nitroBarW = 150 * (1 - car.nitroCooldown / CONFIG.nitroCooldown);
-            nitroCol1 = '#555'; nitroCol2 = '#777';
+            nitroBarPct = 1 - car.nitroCooldown / CONFIG.nitroCooldown;
+            nitroCol1 = '#444'; nitroCol2 = '#666';
             nitroLabel = 'CHARGING ' + Math.ceil(car.nitroCooldown / 60) + 's';
         } else {
-            nitroBarW = 150;
+            nitroBarPct = 1;
             nitroCol1 = '#00ccff'; nitroCol2 = '#00ff88';
-            nitroLabel = 'READY';
+            nitroLabel = 'NITRO READY';
         }
-        let nitroGrad = ctx.createLinearGradient(blx+10, 0, blx+160, 0);
-        nitroGrad.addColorStop(0, nitroCol1); nitroGrad.addColorStop(1, nitroCol2);
-        ctx.fillStyle = nitroGrad;
-        ctx.fillRect(blx+10, bly+40, nitroBarW, 10);
-        ctx.fillStyle='#aaa'; ctx.font='9px Arial'; ctx.textAlign='center';
-        ctx.fillText(nitroLabel, blx+85, bly+63);
+        hudBar(blx + 10, bly + 50, blw - 20, 8, nitroBarPct, nitroCol1, nitroCol2);
+        ctx.fillStyle = '#888'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(nitroLabel, blx + blw / 2, bly + blh - 4);
 
-        // --- Bottom-center: Health bar ---
-        let hbw = 260, hbh = 20;
-        let hbx = vx+vw/2 - hbw/2, hby = vy+vh - pad - 28;
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(hbx-4, hby-4, hbw+8, hbh+8);
-        ctx.fillStyle='#333'; ctx.fillRect(hbx, hby, hbw, hbh);
-        let hp = Math.max(0, car.health) / car.maxHealth;
-        let hpColor = hp > .5 ? '#4f4' : hp > .25 ? '#ff4' : '#f44';
-        ctx.fillStyle = hpColor;
-        ctx.fillRect(hbx, hby, hbw * hp, hbh);
-        ctx.strokeStyle = hpColor; ctx.lineWidth = 1;
-        ctx.strokeRect(hbx, hby, hbw, hbh);
-        ctx.fillStyle='#fff'; ctx.font='bold 12px Arial'; ctx.textAlign='center';
-        ctx.fillText(`HP: ${Math.max(0,Math.round(car.health))}%`, hbx+hbw/2, hby+15);
+        // ── Bottom-center: Health bar ──
+        var hbw = 280, hbh = 22;
+        var hbx = vx + vw / 2 - hbw / 2, hby = vy + vh - pad - 32;
+        hudPanel(hbx - 6, hby - 6, hbw + 12, hbh + 16, accent);
 
-        // --- Active power-up indicator (above health bar) ---
+        var hp = Math.max(0, car.health) / car.maxHealth;
+        var hpCol1, hpCol2;
+        if (hp > 0.5) { hpCol1 = '#2a2'; hpCol2 = '#4f4'; }
+        else if (hp > 0.25) { hpCol1 = '#cc4'; hpCol2 = '#ff4'; }
+        else { hpCol1 = '#a22'; hpCol2 = '#f44'; }
+
+        hudBar(hbx, hby, hbw, hbh, hp, hpCol1, hpCol2);
+
+        // HP text on top of bar
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('HP  ' + Math.max(0, Math.round(car.health)) + ' / ' + car.maxHealth, hbx + hbw / 2, hby + 16);
+
+        // Segment lines on bar
+        ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+        for (var si = 1; si < 4; si++) {
+            var lx = hbx + (hbw / 4) * si;
+            ctx.beginPath(); ctx.moveTo(lx, hby + 1); ctx.lineTo(lx, hby + hbh - 1); ctx.stroke();
+        }
+
+        // ── Power-up indicator (above health bar) ──
         if (car.alive && car.activePowerUp) {
-            let puLabel = car.activePowerUp.toUpperCase();
-            let puTime = Math.ceil(car.powerUpTimer / 60);
-            let puColors = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
-            let puCol = puColors[car.activePowerUp] || '#fff';
-            ctx.fillStyle='rgba(0,0,0,.6)';
-            ctx.fillRect(vx+vw/2-70, hby-30, 140, 22);
-            ctx.fillStyle=puCol; ctx.font='bold 13px Courier New'; ctx.textAlign='center';
-            ctx.fillText(`${puLabel} ${puTime}s`, vx+vw/2, hby-14);
+            var puLabel = car.activePowerUp.toUpperCase();
+            var puTime = Math.ceil(car.powerUpTimer / 60);
+            var puColors = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
+            var puCol = puColors[car.activePowerUp] || '#fff';
+            hudPanel(vx + vw / 2 - 60, hby - 34, 120, 24, puCol);
+            ctx.shadowColor = puCol; ctx.shadowBlur = 6;
+            ctx.fillStyle = puCol; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText(puLabel + ' ' + puTime + 's', vx + vw / 2, hby - 17);
+            ctx.shadowBlur = 0;
         }
 
-        // --- If dead — show respawn countdown ---
+        // ── Death overlay ──
         if (!car.alive) {
-            ctx.fillStyle='rgba(0,0,0,.55)';
+            ctx.fillStyle = 'rgba(0,0,0,.6)';
             ctx.fillRect(vx, vy, vw, vh);
-            ctx.fillStyle='#f44'; ctx.font='bold 48px Arial'; ctx.textAlign='center';
-            ctx.fillText('WRECKED!', vx+vw/2, vy+vh/2 - 30);
-            let secLeft = Math.ceil(car.respawnTimer / 60);
-            ctx.fillStyle='#fff'; ctx.font='bold 26px Arial';
-            ctx.fillText(`Respawn in ${secLeft}...`, vx+vw/2, vy+vh/2 + 20);
+            ctx.shadowColor = '#f44'; ctx.shadowBlur = 20;
+            ctx.fillStyle = '#f44'; ctx.font = 'bold 48px Arial'; ctx.textAlign = 'center';
+            ctx.fillText('WRECKED!', vx + vw / 2, vy + vh / 2 - 30);
+            ctx.shadowBlur = 0;
+            var secLeft = Math.ceil(car.respawnTimer / 60);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Arial';
+            ctx.fillText('Respawn in ' + secLeft + '...', vx + vw / 2, vy + vh / 2 + 20);
         }
 
-        // --- Minimap (bottom-right corner) ---
-        let mmS = 140, mmx = vx+vw-pad-mmS, mmy = vy+vh-pad-mmS;
-        ctx.fillStyle='rgba(20,30,10,.8)';
-        ctx.fillRect(mmx, mmy, mmS, mmS);
-        ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(mmx,mmy,mmS,mmS);
-        ctx.fillStyle='#333';
-        let mcx=mmx+mmS/2, mcy=mmy+mmS/2;
-        ctx.beginPath();ctx.arc(mcx,mcy,mmS*520/mmArenaW,0,Math.PI*2);ctx.fill();
-        for (let pu of powerUps) {
-            let mx = mmx + (pu.x/mmArenaW)*mmS;
-            let my = mmy + (pu.y/mmArenaH)*mmS;
+        // ── Minimap (bottom-right) ──
+        var mmS = 140, mmx = vx + vw - pad - mmS, mmy = vy + vh - pad - mmS;
+        ctx.fillStyle = 'rgba(10,15,5,.75)';
+        hudRoundRect(mmx, mmy, mmS, mmS, 6);
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(mmx, mmy, mmS, mmS, 6); ctx.stroke();
+        ctx.fillStyle = 'rgba(40,50,30,.5)';
+        var mcx = mmx + mmS / 2, mcy = mmy + mmS / 2;
+        ctx.beginPath(); ctx.arc(mcx, mcy, mmS * 520 / mmArenaW, 0, Math.PI * 2); ctx.fill();
+        for (var pi = 0; pi < powerUps.length; pi++) {
+            var pu = powerUps[pi];
+            var mx = mmx + (pu.x / mmArenaW) * mmS;
+            var my = mmy + (pu.y / mmArenaH) * mmS;
             ctx.fillStyle = pu.color;
-            ctx.fillRect(mx-2, my-2, 4, 4);
+            ctx.fillRect(mx - 2, my - 2, 4, 4);
         }
-        for (let c of cars) {
+        for (var ci = 0; ci < cars.length; ci++) {
+            var c = cars[ci];
             if (!c.alive) continue;
-            let mx = mmx + (c.x/mmArenaW)*mmS;
-            let my = mmy + (c.y/mmArenaH)*mmS;
+            var mx = mmx + (c.x / mmArenaW) * mmS;
+            var my = mmy + (c.y / mmArenaH) * mmS;
             ctx.fillStyle = c === car ? '#fff' : '#f44';
-            let sz = c === car ? 5 : 3;
-            ctx.fillRect(mx-sz/2, my-sz/2, sz, sz);
+            var sz = c === car ? 5 : 3;
+            ctx.fillRect(mx - sz / 2, my - sz / 2, sz, sz);
         }
         ctx.strokeStyle = accent; ctx.lineWidth = 1;
-        let camRx = mmx + ((car.x - vw/2) / mmArenaW) * mmS;
-        let camRy = mmy + ((car.y - vh/2) / mmArenaH) * mmS;
-        let camRw = (vw / mmArenaW) * mmS;
-        let camRh = (vh / mmArenaH) * mmS;
+        var camRx = mmx + ((car.x - vw / 2) / mmArenaW) * mmS;
+        var camRy = mmy + ((car.y - vh / 2) / mmArenaH) * mmS;
+        var camRw = (vw / mmArenaW) * mmS;
+        var camRh = (vh / mmArenaH) * mmS;
         ctx.strokeRect(camRx, camRy, camRw, camRh);
 
     } else {
-        // ======= MULTIPLAYER HUD (per viewport) =======
+        // ═══════════════════════════════════════════════
+        //  MULTIPLAYER HUD (per viewport)
+        // ═══════════════════════════════════════════════
 
-        // --- Top: Player name & kills ---
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(vx+pad, vy+pad, 180, 78);
-        ctx.strokeStyle=accent; ctx.lineWidth=1;
-        ctx.strokeRect(vx+pad, vy+pad, 180, 78);
+        // ── Top-left: Player name & stats ──
+        var tlw = 160, tlh = 70;
+        hudPanel(vx + pad, vy + pad, tlw, tlh, accent);
 
-        ctx.fillStyle=accent; ctx.font='bold 16px Courier New'; ctx.textAlign='left';
-        ctx.fillText(car.name, vx+pad+10, vy+pad+20);
+        ctx.fillStyle = accent; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
+        ctx.fillText(car.name, vx + pad + 10, vy + pad + 18);
 
-        ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
-        ctx.fillText(`KILLS  `, vx+pad+10, vy+pad+40);
-        ctx.fillStyle='#fff'; ctx.fillText(car.kills, vx+pad+80, vy+pad+40);
+        var alive = cars.filter(function(c) { return c.alive; }).length;
+        var mstats = [
+            { label: 'KILLS', val: car.kills, col: '#fff' },
+            { label: 'HITS',  val: car.hits,  col: '#fff' },
+            { label: 'ALIVE', val: alive + '/' + cars.length, col: '#adf' },
+        ];
+        for (var i = 0; i < mstats.length; i++) {
+            var row_y = vy + pad + 34 + i * 14;
+            ctx.fillStyle = '#666'; ctx.font = '10px Arial'; ctx.textAlign = 'left';
+            ctx.fillText(mstats[i].label, vx + pad + 10, row_y);
+            ctx.fillStyle = mstats[i].col; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'right';
+            ctx.fillText(mstats[i].val, vx + pad + tlw - 10, row_y);
+        }
 
-        ctx.fillStyle='#aaa';
-        ctx.fillText(`HITS   `, vx+pad+10, vy+pad+56);
-        ctx.fillStyle='#fff'; ctx.fillText(car.hits, vx+pad+80, vy+pad+56);
+        // ── Top-center: Timer ──
+        var mins = Math.floor(gameTime / 60), secs = Math.floor(gameTime % 60);
+        hudPanel(vx + vw / 2 - 35, vy + pad, 70, 24, 'rgba(255,255,255,.15)');
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'center';
+        ctx.fillText(mins + ':' + secs.toString().padStart(2, '0'), vx + vw / 2, vy + pad + 17);
 
-        let alive = cars.filter(c=>c.alive).length;
-        ctx.fillStyle='#aaa';
-        ctx.fillText(`ALIVE  `, vx+pad+10, vy+pad+72);
-        ctx.fillStyle='#fff'; ctx.fillText(`${alive}/${cars.length}`, vx+pad+80, vy+pad+72);
+        // ── Top-right: Controls ──
+        var crx = vx + vw - pad - 100, cry = vy + pad;
+        hudPanel(crx, cry, 100, 56, 'rgba(255,255,255,.08)');
+        ctx.fillStyle = '#777'; ctx.font = '9px Arial'; ctx.textAlign = 'left';
+        if (isP1) {
+            ctx.fillText('A/D Steer', crx + 6, cry + 13);
+            ctx.fillText('S Brake  W Nitro', crx + 6, cry + 27);
+            ctx.fillText('Q Drift', crx + 6, cry + 41);
+        } else {
+            ctx.fillText('\u2190/\u2192 Steer', crx + 6, cry + 13);
+            ctx.fillText('\u2193 Brake  \u2191 Nitro', crx + 6, cry + 27);
+            ctx.fillText('M Drift', crx + 6, cry + 41);
+        }
 
-        // --- Bottom-left: Speed + Nitro ---
-        let blx = vx + pad, bly = vy + vh - pad - 70;
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(blx, bly, 160, 70);
-        ctx.strokeStyle=accent; ctx.lineWidth=1;
-        ctx.strokeRect(blx, bly, 160, 70);
+        // ── Bottom-left: Speed + Nitro ──
+        var blw = 150, blh = 66;
+        var blx = vx + pad, bly = vy + vh - pad - blh;
+        hudPanel(blx, bly, blw, blh, accent);
 
-        let speed = Math.round(car.speed * 20);
-        ctx.fillStyle='#4ff'; ctx.font='bold 28px Courier New'; ctx.textAlign='left';
-        ctx.fillText(speed, blx+10, bly+30);
-        ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
-        ctx.fillText('KMH', blx+85, bly+30);
+        var speed = Math.round(car.speed * 20);
+        ctx.fillStyle = '#4ff'; ctx.font = 'bold 28px Courier New'; ctx.textAlign = 'left';
+        ctx.fillText(speed, blx + 10, bly + 28);
+        ctx.fillStyle = '#556'; ctx.font = 'bold 10px Arial';
+        ctx.fillText('KMH', blx + 90, bly + 28);
 
-        // Nitro bar (cooldown-based)
-        ctx.fillStyle='#222'; ctx.fillRect(blx+10, bly+40, 140, 10);
-        let nitroLabel, nitroBarW, nitroCol1, nitroCol2;
+        // Speed bar
+        var maxDisplaySpd = Math.round(CONFIG.nitroMaxSpeed * 20);
+        var spdPct = Math.min(speed / maxDisplaySpd, 1);
+        var spdCol = speed > 150 ? '#f44' : speed > 100 ? '#ff4' : '#4ff';
+        hudBar(blx + 10, bly + 36, blw - 20, 4, spdPct, spdCol, spdCol);
+
+        // Nitro bar
+        var nitroLabel, nitroBarPct, nitroCol1, nitroCol2;
         if (car.nitroActive) {
-            nitroBarW = 140 * (car.nitroBurnTimer / CONFIG.nitroBurnFrames);
+            nitroBarPct = car.nitroBurnTimer / CONFIG.nitroBurnFrames;
             nitroCol1 = '#ff8800'; nitroCol2 = '#ffcc00';
             nitroLabel = 'BURN ' + Math.ceil(car.nitroBurnTimer / 60) + 's';
         } else if (car.nitroCooldown > 0) {
-            nitroBarW = 140 * (1 - car.nitroCooldown / CONFIG.nitroCooldown);
-            nitroCol1 = '#555'; nitroCol2 = '#777';
+            nitroBarPct = 1 - car.nitroCooldown / CONFIG.nitroCooldown;
+            nitroCol1 = '#444'; nitroCol2 = '#666';
             nitroLabel = 'CHARGING ' + Math.ceil(car.nitroCooldown / 60) + 's';
         } else {
-            nitroBarW = 140;
+            nitroBarPct = 1;
             nitroCol1 = '#00ccff'; nitroCol2 = '#00ff88';
-            nitroLabel = 'READY';
+            nitroLabel = 'NITRO READY';
         }
-        let nitroGrad = ctx.createLinearGradient(blx+10, 0, blx+150, 0);
-        nitroGrad.addColorStop(0, nitroCol1); nitroGrad.addColorStop(1, nitroCol2);
-        ctx.fillStyle = nitroGrad;
-        ctx.fillRect(blx+10, bly+40, nitroBarW, 10);
-        ctx.fillStyle='#aaa'; ctx.font='9px Arial'; ctx.textAlign='center';
-        ctx.fillText(nitroLabel, blx+80, bly+63);
+        hudBar(blx + 10, bly + 45, blw - 20, 7, nitroBarPct, nitroCol1, nitroCol2);
+        ctx.fillStyle = '#777'; ctx.font = '8px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(nitroLabel, blx + blw / 2, bly + blh - 4);
 
-        // --- Bottom-center: Health bar ---
-        let hbw = 200, hbh = 16;
-        let hbx = vx + vw/2 - hbw/2, hby = vy + vh - pad - 22;
-        ctx.fillStyle='rgba(0,0,0,.65)';
-        ctx.fillRect(hbx-4, hby-4, hbw+8, hbh+8);
-        ctx.fillStyle='#333'; ctx.fillRect(hbx, hby, hbw, hbh);
-        let hp = Math.max(0, car.health) / car.maxHealth;
-        let hpColor = hp > .5 ? '#4f4' : hp > .25 ? '#ff4' : '#f44';
-        ctx.fillStyle = hpColor;
-        ctx.fillRect(hbx, hby, hbw * hp, hbh);
-        ctx.strokeStyle = hpColor; ctx.lineWidth = 1;
-        ctx.strokeRect(hbx, hby, hbw, hbh);
-        ctx.fillStyle='#fff'; ctx.font='bold 11px Arial'; ctx.textAlign='center';
-        ctx.fillText(`${Math.max(0,Math.round(car.health))}%`, hbx+hbw/2, hby+12);
+        // ── Bottom-center: Health bar ──
+        var hbw = 200, hbh = 18;
+        var hbx = vx + vw / 2 - hbw / 2, hby = vy + vh - pad - 28;
+        hudPanel(hbx - 5, hby - 5, hbw + 10, hbh + 14, accent);
 
-        // --- If dead — show respawn countdown ---
-        if (!car.alive) {
-            ctx.fillStyle='rgba(0,0,0,.55)';
-            ctx.fillRect(vx, vy, vw, vh);
-            ctx.fillStyle='#f44'; ctx.font='bold 36px Arial'; ctx.textAlign='center';
-            ctx.fillText('WRECKED!', vx+vw/2, vy+vh/2 - 20);
-            let secLeft = Math.ceil(car.respawnTimer / 60);
-            ctx.fillStyle='#fff'; ctx.font='bold 22px Arial';
-            ctx.fillText(`Respawn in ${secLeft}...`, vx+vw/2, vy+vh/2 + 20);
+        var hp = Math.max(0, car.health) / car.maxHealth;
+        var hpCol1, hpCol2;
+        if (hp > 0.5) { hpCol1 = '#2a2'; hpCol2 = '#4f4'; }
+        else if (hp > 0.25) { hpCol1 = '#cc4'; hpCol2 = '#ff4'; }
+        else { hpCol1 = '#a22'; hpCol2 = '#f44'; }
+
+        hudBar(hbx, hby, hbw, hbh, hp, hpCol1, hpCol2);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(Math.max(0, Math.round(car.health)) + '%', hbx + hbw / 2, hby + 14);
+
+        // Segment lines
+        ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+        for (var si = 1; si < 4; si++) {
+            var lx = hbx + (hbw / 4) * si;
+            ctx.beginPath(); ctx.moveTo(lx, hby + 1); ctx.lineTo(lx, hby + hbh - 1); ctx.stroke();
         }
 
-        // --- Active power-up indicator ---
+        // ── Power-up indicator ──
         if (car.alive && car.activePowerUp) {
-            let puLabel = car.activePowerUp.toUpperCase();
-            let puTime = Math.ceil(car.powerUpTimer / 60);
-            let puColors = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
-            let puCol = puColors[car.activePowerUp] || '#fff';
-            ctx.fillStyle='rgba(0,0,0,.6)';
-            ctx.fillRect(vx+vw/2-60, vy+vh-pad-50, 120, 20);
-            ctx.fillStyle=puCol; ctx.font='bold 12px Courier New'; ctx.textAlign='center';
-            ctx.fillText(`${puLabel} ${puTime}s`, vx+vw/2, vy+vh-pad-36);
+            var puLabel = car.activePowerUp.toUpperCase();
+            var puTime = Math.ceil(car.powerUpTimer / 60);
+            var puColors = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
+            var puCol = puColors[car.activePowerUp] || '#fff';
+            hudPanel(vx + vw / 2 - 55, hby - 30, 110, 22, puCol);
+            ctx.shadowColor = puCol; ctx.shadowBlur = 6;
+            ctx.fillStyle = puCol; ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText(puLabel + ' ' + puTime + 's', vx + vw / 2, hby - 14);
+            ctx.shadowBlur = 0;
         }
 
-        // --- Minimap (bottom-right corner of viewport) ---
-        let mmS = 110, mmx = vx+vw-pad-mmS, mmy = vy+vh-pad-mmS;
-        ctx.fillStyle='rgba(20,30,10,.8)';
-        ctx.fillRect(mmx, mmy, mmS, mmS);
-        ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(mmx,mmy,mmS,mmS);
-        ctx.fillStyle='#333';
-        let mcx=mmx+mmS/2, mcy=mmy+mmS/2;
-        ctx.beginPath();ctx.arc(mcx,mcy,mmS*520/mmArenaW,0,Math.PI*2);ctx.fill();
-        for (let pu of powerUps) {
-            let mx = mmx + (pu.x/mmArenaW)*mmS;
-            let my = mmy + (pu.y/mmArenaH)*mmS;
-            ctx.fillStyle = pu.color;
-            ctx.fillRect(mx-2, my-2, 4, 4);
+        // ── Death overlay ──
+        if (!car.alive) {
+            ctx.fillStyle = 'rgba(0,0,0,.6)';
+            ctx.fillRect(vx, vy, vw, vh);
+            ctx.shadowColor = '#f44'; ctx.shadowBlur = 16;
+            ctx.fillStyle = '#f44'; ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
+            ctx.fillText('WRECKED!', vx + vw / 2, vy + vh / 2 - 20);
+            ctx.shadowBlur = 0;
+            var secLeft = Math.ceil(car.respawnTimer / 60);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial';
+            ctx.fillText('Respawn in ' + secLeft + '...', vx + vw / 2, vy + vh / 2 + 20);
         }
-        for (let c of cars) {
+
+        // ── Minimap (bottom-right) ──
+        var mmS = 110, mmx = vx + vw - pad - mmS, mmy = vy + vh - pad - mmS;
+        ctx.fillStyle = 'rgba(10,15,5,.75)';
+        hudRoundRect(mmx, mmy, mmS, mmS, 5);
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(mmx, mmy, mmS, mmS, 5); ctx.stroke();
+        ctx.fillStyle = 'rgba(40,50,30,.5)';
+        var mcx = mmx + mmS / 2, mcy = mmy + mmS / 2;
+        ctx.beginPath(); ctx.arc(mcx, mcy, mmS * 520 / mmArenaW, 0, Math.PI * 2); ctx.fill();
+        for (var pi = 0; pi < powerUps.length; pi++) {
+            var pu = powerUps[pi];
+            var mx = mmx + (pu.x / mmArenaW) * mmS;
+            var my = mmy + (pu.y / mmArenaH) * mmS;
+            ctx.fillStyle = pu.color;
+            ctx.fillRect(mx - 2, my - 2, 4, 4);
+        }
+        for (var ci = 0; ci < cars.length; ci++) {
+            var c = cars[ci];
             if (!c.alive) continue;
-            let mx = mmx + (c.x/mmArenaW)*mmS;
-            let my = mmy + (c.y/mmArenaH)*mmS;
-            ctx.fillStyle = c === car ? '#fff' : c.playerIdx>=0 ? c.color : '#f44';
-            let sz = c === car ? 4 : 2.5;
-            ctx.fillRect(mx-sz/2, my-sz/2, sz, sz);
+            var mx = mmx + (c.x / mmArenaW) * mmS;
+            var my = mmy + (c.y / mmArenaH) * mmS;
+            ctx.fillStyle = c === car ? '#fff' : c.playerIdx >= 0 ? c.color : '#f44';
+            var sz = c === car ? 4 : 2.5;
+            ctx.fillRect(mx - sz / 2, my - sz / 2, sz, sz);
         }
         ctx.strokeStyle = accent; ctx.lineWidth = 1;
-        let camRx = mmx + ((car.x - vw/2) / mmArenaW) * mmS;
-        let camRy = mmy + ((car.y - vh/2) / mmArenaH) * mmS;
-        let camRw = (vw / mmArenaW) * mmS;
-        let camRh = (vh / mmArenaH) * mmS;
+        var camRx = mmx + ((car.x - vw / 2) / mmArenaW) * mmS;
+        var camRy = mmy + ((car.y - vh / 2) / mmArenaH) * mmS;
+        var camRw = (vw / mmArenaW) * mmS;
+        var camRh = (vh / mmArenaH) * mmS;
         ctx.strokeRect(camRx, camRy, camRw, camRh);
-
-        // --- Controls reminder (top-right of viewport) ---
-        let crx = vx + vw - pad - 110, cry = vy + pad;
-        ctx.fillStyle='rgba(0,0,0,.5)';
-        ctx.fillRect(crx, cry, 110, 68);
-        ctx.fillStyle='#888'; ctx.font='10px Arial'; ctx.textAlign='left';
-        if (isP1) {
-            ctx.fillText('A/D  Steer', crx+8, cry+14);
-            ctx.fillText('S    Brake', crx+8, cry+28);
-            ctx.fillText('W    Nitro', crx+8, cry+42);
-            ctx.fillText('Q    Drift', crx+8, cry+56);
-        } else {
-            ctx.fillText('\u2190/\u2192  Steer', crx+8, cry+14);
-            ctx.fillText('\u2193    Brake', crx+8, cry+28);
-            ctx.fillText('\u2191    Nitro', crx+8, cry+42);
-            ctx.fillText('M    Drift', crx+8, cry+56);
-        }
-
-        // --- Timer (top-center) ---
-        let mins = Math.floor(gameTime/60), secs = Math.floor(gameTime%60);
-        ctx.fillStyle='rgba(0,0,0,.5)';
-        ctx.fillRect(vx+vw/2-35, vy+pad, 70, 22);
-        ctx.fillStyle='#fff'; ctx.font='bold 14px Courier New'; ctx.textAlign='center';
-        ctx.fillText(`${mins}:${secs.toString().padStart(2,'0')}`, vx+vw/2, vy+pad+16);
     }
 
     ctx.restore();

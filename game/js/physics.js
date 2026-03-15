@@ -2,6 +2,14 @@
 //  SURFACE DETECTION & PHYSICS
 // ================================================================
 function getSurface(x, y) {
+    // Ice patches (highest priority hazard)
+    for (let p of icePatches) {
+        if (Math.hypot(x - p.x, y - p.y) < p.r) return 'ice';
+    }
+    // Sand traps
+    for (let p of sandTraps) {
+        if (Math.hypot(x - p.x, y - p.y) < p.r) return 'sandtrap';
+    }
     // Check hazards first (they overlay base terrain)
     for (let p of oilSlicks) {
         let dx = x - p.x, dy = y - p.y;
@@ -16,7 +24,9 @@ function getSurface(x, y) {
         if (Math.hypot(x - p.x, y - p.y) < p.r) return 'mud';
     }
 
-    // Base terrain — read radial road layout from currentMap
+    // Base terrain — check surfaceDefault first, then radial roads
+    if (currentMap && currentMap.surfaceDefault === 'tarmac') return 'tarmac';
+
     let aW = (currentMap && currentMap.arenaWidth) || ARENA_W;
     let aH = (currentMap && currentMap.arenaHeight) || ARENA_H;
     let cx = aW / 2, cy = aH / 2;
@@ -42,7 +52,27 @@ function getSurface(x, y) {
                 if (alongDist > 0 && perpDist < roadWidth) return 'tarmac';
             }
         }
-    } else {
+    }
+
+    // Curvy roads — check point-to-segment distance
+    if (currentMap && currentMap.curvyRoads) {
+        for (let ri = 0; ri < currentMap.curvyRoads.length; ri++) {
+            let road = currentMap.curvyRoads[ri];
+            let hw = road.width / 2;
+            let pts = road.points;
+            for (let i = 0; i < pts.length - 1; i++) {
+                let p1 = pts[i], p2 = pts[i+1];
+                let sdx = p2.x - p1.x, sdy = p2.y - p1.y;
+                let segLen2 = sdx * sdx + sdy * sdy;
+                if (segLen2 === 0) continue;
+                let t = Math.max(0, Math.min(1, ((x - p1.x) * sdx + (y - p1.y) * sdy) / segLen2));
+                let nearX = p1.x + t * sdx, nearY = p1.y + t * sdy;
+                if (Math.hypot(x - nearX, y - nearY) < hw) return road.surface || 'tarmac';
+            }
+        }
+    }
+
+    if (!currentMap || !currentMap.radialRoads) {
         // Fallback: original hardcoded geometry
         if (dist < 520) return 'tarmac';
 
@@ -93,6 +123,8 @@ function applyFriction(car, isHandbrake) {
         case 'mud':    fwd = CONFIG.mudFriction;     lat = CONFIG.mudGrip;    break;
         case 'water':  fwd = CONFIG.waterFriction;   lat = CONFIG.waterGrip;  break;
         case 'oil':    fwd = CONFIG.oilFriction;     lat = CONFIG.oilGrip;    break;
+        case 'ice':    fwd = CONFIG.iceFriction;     lat = CONFIG.iceGrip;    break;
+        case 'sandtrap': fwd = CONFIG.sandTrapFriction; lat = CONFIG.sandTrapGrip; break;
         default:       fwd = CONFIG.grassFriction;   lat = CONFIG.grassGrip;  break;
     }
 
@@ -129,8 +161,57 @@ function applyFriction(car, isHandbrake) {
 // ================================================================
 //  MOVEMENT & COLLISIONS
 // ================================================================
+function jumpArc(t) { return 4 * t * (1 - t); }
+
 function moveCar(car) {
     if (!car.alive) return;
+
+    // ── Airborne state ──
+    if (car.airborne) {
+        car.jumpT += 0.0167 / car.jumpDuration;
+        car.x += car.vx; car.y += car.vy;
+
+        // Wall clamping
+        let aW = (currentMap && currentMap.arenaWidth) || ARENA_W;
+        let aH = (currentMap && currentMap.arenaHeight) || ARENA_H;
+        const m = 60;
+        if (car.x < m) { car.x = m; car.vx *= -0.3; }
+        if (car.x > aW - m) { car.x = aW - m; car.vx *= -0.3; }
+        if (car.y < m) { car.y = m; car.vy *= -0.3; }
+        if (car.y > aH - m) { car.y = aH - m; car.vy *= -0.3; }
+
+        if (car.jumpT >= 1) {
+            // Landing
+            car.airborne = false;
+            car.jumpT = 0;
+            car.vx *= CONFIG.jumpLandingLoss;
+            car.vy *= CONFIG.jumpLandingLoss;
+            // Landing dust cloud
+            for (let i = 0; i < 14; i++) {
+                let a = Math.random() * Math.PI * 2;
+                let s = 0.5 + Math.random() * 2.5;
+                particles.push(mkParticle(
+                    car.x + (Math.random() - 0.5) * 24,
+                    car.y + (Math.random() - 0.5) * 24,
+                    Math.cos(a) * s, Math.sin(a) * s,
+                    ['#a98','#876','#998','#887'][Math.random()*4|0],
+                    3 + Math.random() * 6, 0.025
+                ));
+            }
+            playSfxThrottled('bump', 100);
+            // Landing floating text
+            if (car.playerIdx >= 0) {
+                floatingTexts.push({
+                    x: car.x, y: car.y - 35,
+                    text: 'LANDED!',
+                    color: '#ff4', alpha: 1, vy: -0.6, life: 60
+                });
+            }
+        }
+        car.speed = Math.hypot(car.vx, car.vy);
+        return;
+    }
+
     if (car.spinTimer > 0) { car.spinTimer--; car.angle += 0.15; }
     car.x += car.vx; car.y += car.vy;
 
@@ -241,6 +322,154 @@ function moveCar(car) {
             ));
         }
     }
+
+    // Breakable collisions (all types)
+    for (let i = breakables.length - 1; i >= 0; i--) {
+        let b = breakables[i];
+        let bdx = car.x - b.x, bdy = car.y - b.y;
+        let bdist = Math.hypot(bdx, bdy);
+        let bMinD = b.r + 15;
+        if (bdist < bMinD && bdist > 0) {
+            let bnx = bdx / bdist, bny = bdy / bdist;
+            let impact = Math.hypot(car.vx, car.vy);
+
+            // Push breakable away — mass affects push distance
+            let pushMult = 0.8 / (b.mass || 1);
+            b.x -= bnx * (bMinD - bdist + 5);
+            b.y -= bny * (bMinD - bdist + 5);
+            b.vx = -bnx * impact * pushMult;
+            b.vy = -bny * impact * pushMult;
+            b.spinRate = (Math.random() - 0.5) * 0.3 / (b.mass || 1);
+
+            // Damage the breakable
+            b.hp -= impact * 3;
+
+            // Type-specific car interaction
+            if (b.type === 'tire_stack') {
+                // Bouncy — car bounces back
+                car.vx += bnx * impact * 0.35;
+                car.vy += bny * impact * 0.35;
+                car.vx *= 0.75;
+                car.vy *= 0.75;
+            } else if (b.type === 'hay') {
+                // Cushion — absorbs impact, more slowdown, less damage to breakable
+                car.vx *= 0.82;
+                car.vy *= 0.82;
+                b.hp += impact * 1.5; // Hay is spongy, takes less net damage
+            } else {
+                // Normal minor slowdown
+                car.vx *= 0.95;
+                car.vy *= 0.95;
+            }
+
+            playSfxThrottled('bump', 100);
+
+            if (b.hp <= 0) {
+                // Barrel explosion!
+                if (b.type === 'barrel') {
+                    for (let ci = 0; ci < cars.length; ci++) {
+                        let ec = cars[ci];
+                        if (!ec.alive) continue;
+                        let ed = Math.hypot(ec.x - b.x, ec.y - b.y);
+                        if (ed < CONFIG.barrelBlastRadius && ed > 0) {
+                            let blastForce = 1 - ed / CONFIG.barrelBlastRadius;
+                            let enx = (ec.x - b.x) / ed;
+                            let eny = (ec.y - b.y) / ed;
+                            ec.vx += enx * blastForce * 6;
+                            ec.vy += eny * blastForce * 6;
+                            if (ec.invincible <= 0) {
+                                ec.health -= CONFIG.barrelBlastDamage * blastForce;
+                                checkDeath(ec);
+                            }
+                        }
+                    }
+                    spawnExplosion(b.x, b.y, '#f80');
+                    playSfx('explode');
+                }
+
+                // Destroy — spawn debris and sparks
+                let debrisCount = b.type === 'container' ? 14 : 8;
+                for (let j = 0; j < debrisCount; j++) {
+                    let da = Math.random() * Math.PI * 2;
+                    debris.push({
+                        x: b.x, y: b.y,
+                        vx: Math.cos(da) * (2 + Math.random() * 3),
+                        vy: Math.sin(da) * (2 + Math.random() * 3),
+                        angle: Math.random() * Math.PI * 2,
+                        spin: (Math.random() - 0.5) * 0.3,
+                        size: 3 + Math.random() * 5,
+                        color: b.color,
+                        life: 60 + Math.random() * 60
+                    });
+                }
+                spawnSparks(b.x, b.y, b.type === 'barrel' ? 12 : 6);
+                breakables.splice(i, 1);
+            }
+        }
+    }
+
+    // Ramp launch detection
+    for (let ri = 0; ri < ramps.length; ri++) {
+        let r = ramps[ri];
+        let rdx = car.x - r.x, rdy = car.y - r.y;
+        let rcos = Math.cos(-r.angle), rsin = Math.sin(-r.angle);
+        let lx = rdx * rcos - rdy * rsin;
+        let ly = rdx * rsin + rdy * rcos;
+        if (Math.abs(lx) < r.w / 2 && Math.abs(ly) < r.h / 2) {
+            if (carSpd > CONFIG.jumpMinSpeed && car.lastRamp !== r) {
+                car.airborne = true;
+                car.lastRamp = r;
+                car.jumpVx = car.vx;
+                car.jumpVy = car.vy;
+                let speedFactor = Math.min(carSpd / CONFIG.nitroMaxSpeed, 1);
+                car.jumpHeight = CONFIG.jumpHeightMin + speedFactor * (CONFIG.jumpHeightMax - CONFIG.jumpHeightMin);
+                car.jumpDuration = CONFIG.jumpDurMin + speedFactor * (CONFIG.jumpDurMax - CONFIG.jumpDurMin);
+                car.jumpT = 0;
+                // Takeoff dust
+                for (let ti = 0; ti < 8; ti++) {
+                    let ta = Math.random() * Math.PI * 2;
+                    particles.push(mkParticle(
+                        car.x + (Math.random() - 0.5) * 16,
+                        car.y + (Math.random() - 0.5) * 16,
+                        Math.cos(ta) * 1.5, Math.sin(ta) * 1.5,
+                        '#aa9', 3 + Math.random() * 4, 0.035
+                    ));
+                }
+                playSfxThrottled('nitro', 200);
+                // Floating text
+                if (car.playerIdx >= 0) {
+                    floatingTexts.push({
+                        x: car.x, y: car.y - 30,
+                        text: 'AIR!',
+                        color: '#ff4', alpha: 1, vy: -0.8, life: 50
+                    });
+                }
+                break;
+            }
+        } else if (car.lastRamp === r) {
+            car.lastRamp = null;
+        }
+    }
+}
+
+function updateBreakables() {
+    for (let b of breakables) {
+        if (b.vx || b.vy) {
+            b.x += b.vx; b.y += b.vy;
+            b.vx *= 0.9; b.vy *= 0.9;
+            if (Math.abs(b.vx) < 0.1 && Math.abs(b.vy) < 0.1) { b.vx = 0; b.vy = 0; }
+        }
+        if (b.spinRate) {
+            b.angle += b.spinRate;
+            b.spinRate *= 0.95;
+            if (Math.abs(b.spinRate) < 0.005) b.spinRate = 0;
+        }
+        // Keep in bounds
+        let aW = (currentMap && currentMap.arenaWidth) || ARENA_W;
+        let aH = (currentMap && currentMap.arenaHeight) || ARENA_H;
+        if (b.x < 80) b.x = 80; if (b.x > aW - 80) b.x = aW - 80;
+        if (b.y < 80) b.y = 80; if (b.y > aH - 80) b.y = aH - 80;
+    }
 }
 
 function checkCollisions() {
@@ -248,6 +477,7 @@ function checkCollisions() {
         for (let j = i+1; j < cars.length; j++) {
             let a = cars[i], b = cars[j];
             if (!a.alive || !b.alive) continue;
+            if (a.airborne || b.airborne) continue;
             let dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
             if (dist < 35 && dist > 0) {
                 let nx = dx/dist, ny = dy/dist, overlap = 35-dist;
@@ -311,10 +541,53 @@ function checkCollisions() {
                         color: '#ff4', alpha: 1, vy: -0.8, life: 80
                     });
 
-                    // Occasional swear bubble on the car that got hit harder
+                    // Impact commentary — severity-based funny texts
+                    let rng = Math.random();
+                    if (impact > 8 && rng < 0.7) {
+                        // Massive hits — epic callouts
+                        let epic = ['WASTED!', 'OBLITERATED!', 'BULLDOZED!', 'YEETED!', 'DESTRUCTION!',
+                            'ANNIHILATED!', 'FATALITY!', 'DECIMATED!', 'VAPORIZED!', 'DELETED!',
+                            'SENT TO ORBIT!', 'RIP BOZO!', 'GET REKT!', 'SKILL ISSUE!', 'UNINSTALL!'];
+                        floatingTexts.push({
+                            x: cx, y: cy - 45, text: epic[Math.random() * epic.length | 0],
+                            color: '#ff2222', alpha: 1, vy: -1.0, life: 110,
+                            big: true
+                        });
+                    } else if (impact > 5 && rng < 0.55) {
+                        // Heavy hits — aggressive taunts
+                        let heavy = ['CRUNCHED!', 'PANCAKED!', 'BODIED!', 'SLAMMED!', 'BOOM!',
+                            'NICE HIT!', 'SAVAGE!', 'BRUTAL!', 'OOF!', 'CRUMPLED!',
+                            'TOTALED!', 'BONK!', 'KAPOW!', 'SMASHED!', 'POW!'];
+                        floatingTexts.push({
+                            x: cx, y: cy - 40, text: heavy[Math.random() * heavy.length | 0],
+                            color: '#ffaa22', alpha: 1, vy: -0.9, life: 100
+                        });
+                    } else if (impact > 3 && rng < 0.4) {
+                        // Medium hits — reactions
+                        let medium = ['OUCH!', 'YIKES!', 'BONK!', 'BOP!', 'CLANK!',
+                            'THWACK!', 'DENIED!', 'NOPE!', 'BRUH!', 'ZOINKS!',
+                            'WATCH IT!', 'MY PAINT!', 'NOT COOL!', 'EXCUSE ME?!', 'REALLY?!'];
+                        floatingTexts.push({
+                            x: cx, y: cy - 35, text: medium[Math.random() * medium.length | 0],
+                            color: '#ffdd44', alpha: 1, vy: -0.7, life: 90
+                        });
+                    } else if (impact > 1.5 && rng < 0.2) {
+                        // Light taps — mild reactions
+                        let light = ['tap tap', 'boop', 'nudge', 'excuse me', 'beep beep',
+                            'oopsie', 'sorry!', 'my bad', 'lol', '*bonk*'];
+                        floatingTexts.push({
+                            x: cx, y: cy - 30, text: light[Math.random() * light.length | 0],
+                            color: '#aaddff', alpha: 1, vy: -0.5, life: 80
+                        });
+                    }
+
+                    // Occasional swear/reaction bubble on the victim
                     if (impact > 3 && Math.random() < 0.3) {
                         let victim = dA > dB ? a : b;
-                        let swears = ['#@$%!', 'HEY!!', 'OUCH!', '%@#$!', 'ARGH!', 'RUDE!', 'WTF!', '$#@%!', 'OW!!', 'NOOO!'];
+                        let swears = ['#@$%!', 'HEY!!', 'OUCH!', '%@#$!', 'ARGH!', 'RUDE!',
+                            'WTF!', '$#@%!', 'OW!!', 'NOOO!', 'WHY?!', 'BRO!!',
+                            'DUDE!!', 'COME ON!', 'SERIOUSLY?!', 'I JUST FIXED THAT!',
+                            'MY BUMPER!', 'INSURANCE!', 'NOT AGAIN!', 'MOM HELP!'];
                         floatingTexts.push({
                             x: victim.x, y: victim.y - 40,
                             text: swears[Math.random() * swears.length | 0],
@@ -363,6 +636,9 @@ function respawnCar(car) {
     car.nitroActive = false;
     car.nitroBurnTimer = 0;
     car.lastHitBy = null;
+    car.airborne = false;
+    car.jumpT = 0;
+    car.lastRamp = null;
     for (let i = 0; i < 15; i++) {
         let a = (i / 15) * Math.PI * 2;
         particles.push(mkParticle(

@@ -8,6 +8,7 @@
 
 function updateAI(car, dt) {
     if (!car.alive) return;
+    if (car.airborne) return; // No control while airborne
     car.aiTimer -= dt;
     let spd = Math.hypot(car.vx, car.vy);
 
@@ -158,7 +159,12 @@ function updateAI(car, dt) {
     // Surface-aware friction with lateral grip
     applyFriction(car, false);
     spd = Math.hypot(car.vx, car.vy);
-    if (spd > cap) { car.vx = car.vx/spd*cap; car.vy = car.vy/spd*cap; }
+    if (spd > cap) {
+        var newSpd = spd * 0.97;
+        if (newSpd < cap) newSpd = cap;
+        car.vx = car.vx / spd * newSpd;
+        car.vy = car.vy / spd * newSpd;
+    }
     car.speed = spd;
 
     // AI sharp-turn skid marks

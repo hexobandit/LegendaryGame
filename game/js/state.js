@@ -22,6 +22,11 @@ var oilSlicks = [];
 var bushes = [];
 var bumps = [];
 var floatingTexts = [];
+var breakables = [];
+var ramps = [];
+var icePatches = [];
+var sandTraps = [];
+var palmTrees = [];
 var score = 0;
 
 var P1_COLOR = '#ff6eb4';

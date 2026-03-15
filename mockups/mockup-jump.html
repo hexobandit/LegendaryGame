@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Jump Mechanic Mockup</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #222; overflow: hidden; font-family: Arial, sans-serif; }
+canvas { display: block; }
+#info {
+    position: fixed; top: 10px; left: 10px; color: #fff; font-size: 14px;
+    background: rgba(0,0,0,0.7); padding: 12px 16px; border-radius: 8px;
+    line-height: 1.6; z-index: 10; max-width: 340px;
+}
+#info h3 { color: #ff4; margin-bottom: 6px; }
+#info kbd { background: #555; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="info">
+    <h3>Jump Mechanic Mockup</h3>
+    <kbd>WASD</kbd> drive &nbsp; <kbd>SHIFT</kbd> nitro<br>
+    Drive over the <span style="color:#fa0">orange ramps</span> to jump!<br>
+    Faster = higher jump = bigger scale.<br>
+    <br>
+    <span style="color:#aaa; font-size:12px">
+    Effect: car scales up (1.0→1.6x), shadow drops away,<br>
+    car can't collide while airborne, dust on landing.
+    </span>
+</div>
+<canvas id="c"></canvas>
+<script>
+var cvs = document.getElementById('c');
+var ctx = cvs.getContext('2d');
+function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── Ramps (jump zones) ──
+var ramps = [
+    { x: 600,  y: 400,  w: 80, h: 30, angle: 0 },
+    { x: 300,  y: 600,  w: 80, h: 30, angle: Math.PI / 4 },
+    { x: 900,  y: 350,  w: 80, h: 30, angle: -Math.PI / 6 },
+    { x: 700,  y: 700,  w: 100, h: 35, angle: Math.PI / 2 },
+    { x: 1100, y: 550,  w: 80, h: 30, angle: Math.PI / 3 },
+    { x: 450,  y: 250,  w: 90, h: 32, angle: -Math.PI / 5 },
+];
+
+// ── Car ──
+var car = {
+    x: 500, y: 500, angle: -Math.PI / 2,
+    vx: 0, vy: 0, speed: 0,
+    // Jump state
+    airborne: false,
+    jumpT: 0,         // 0..1 progress through jump arc
+    jumpDuration: 0,  // total jump time (based on entry speed)
+    jumpHeight: 0,    // peak height (affects scale)
+    jumpVx: 0, jumpVy: 0, // velocity locked at takeoff
+    nitro: false,
+};
+
+var keys = {};
+window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
+
+// ── Particles ──
+var particles = [];
+function spawnDust(x, y, count) {
+    for (var i = 0; i < count; i++) {
+        var ang = Math.random() * Math.PI * 2;
+        var spd = 0.5 + Math.random() * 2.5;
+        particles.push({
+            x: x + (Math.random() - 0.5) * 20,
+            y: y + (Math.random() - 0.5) * 20,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            r: 3 + Math.random() * 5,
+            life: 1,
+            decay: 0.02 + Math.random() * 0.02,
+            color: Math.random() < 0.5 ? '#a98' : '#876',
+        });
+    }
+}
+
+// ── Camera ──
+var camX = 0, camY = 0;
+
+// ── Jump arc function ──
+// Returns height (0-1) for a parabolic arc at progress t (0-1)
+function jumpArc(t) {
+    return 4 * t * (1 - t); // peaks at 1.0 when t=0.5
+}
+
+// ── Update ──
+function update(dt) {
+    if (car.airborne) {
+        // While airborne — car keeps takeoff velocity, no steering
+        car.jumpT += dt / car.jumpDuration;
+        if (car.jumpT >= 1) {
+            // Landing
+            car.airborne = false;
+            car.jumpT = 0;
+            car.vx = car.jumpVx * 0.85; // slight speed loss on landing
+            car.vy = car.jumpVy * 0.85;
+            spawnDust(car.x, car.y, 15);
+        } else {
+            // Fly forward
+            car.x += car.jumpVx;
+            car.y += car.jumpVy;
+        }
+        car.speed = Math.hypot(car.vx, car.vy);
+        return;
+    }
+
+    // Steering
+    var turnRate = 0.04;
+    if (keys['a'] || keys['arrowleft'])  car.angle -= turnRate * (car.speed > 0.5 ? 1 : 0);
+    if (keys['d'] || keys['arrowright']) car.angle += turnRate * (car.speed > 0.5 ? 1 : 0);
+
+    // Throttle
+    car.nitro = !!keys['shift'];
+    var maxSpd = car.nitro ? 10 : 5;
+    var accel = car.nitro ? 0.18 : 0.12;
+
+    if (keys['w'] || keys['arrowup']) {
+        car.vx += Math.cos(car.angle) * accel;
+        car.vy += Math.sin(car.angle) * accel;
+    }
+    if (keys['s'] || keys['arrowdown']) {
+        car.vx -= Math.cos(car.angle) * 0.06;
+        car.vy -= Math.sin(car.angle) * 0.06;
+    }
+
+    // Friction
+    car.vx *= 0.97;
+    car.vy *= 0.97;
+
+    // Lateral grip
+    var forward = { x: Math.cos(car.angle), y: Math.sin(car.angle) };
+    var fDot = car.vx * forward.x + car.vy * forward.y;
+    var lDot = car.vx * (-forward.y) + car.vy * forward.x;
+    lDot *= 0.88; // lateral friction
+    car.vx = forward.x * fDot + (-forward.y) * lDot;
+    car.vy = forward.y * fDot + forward.x * lDot;
+
+    car.speed = Math.hypot(car.vx, car.vy);
+
+    // Speed cap (gradual)
+    if (car.speed > maxSpd) {
+        var ns = car.speed * 0.97;
+        if (ns < maxSpd) ns = maxSpd;
+        car.vx = car.vx / car.speed * ns;
+        car.vy = car.vy / car.speed * ns;
+        car.speed = ns;
+    }
+
+    car.x += car.vx;
+    car.y += car.vy;
+
+    // Check ramp collision
+    for (var i = 0; i < ramps.length; i++) {
+        var r = ramps[i];
+        var dx = car.x - r.x, dy = car.y - r.y;
+        // Rotate into ramp's local space
+        var cos = Math.cos(-r.angle), sin = Math.sin(-r.angle);
+        var lx = dx * cos - dy * sin;
+        var ly = dx * sin + dy * cos;
+        if (Math.abs(lx) < r.w / 2 + 10 && Math.abs(ly) < r.h / 2 + 10) {
+            if (car.speed > 2.5) { // minimum speed to jump
+                car.airborne = true;
+                car.jumpVx = car.vx;
+                car.jumpVy = car.vy;
+                // Jump height & duration scale with speed
+                var speedFactor = Math.min(car.speed / 10, 1); // 0..1
+                car.jumpHeight = 0.2 + speedFactor * 0.6; // 0.2..0.8 (scale multiplier)
+                car.jumpDuration = 0.4 + speedFactor * 0.6; // 0.4..1.0 seconds
+                car.jumpT = 0;
+                spawnDust(car.x, car.y, 8);
+                break;
+            }
+        }
+    }
+
+    // Particles
+    for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vx *= 0.96; p.vy *= 0.96;
+        p.life -= p.decay;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+// ── Draw ──
+function drawRamp(r) {
+    ctx.save();
+    ctx.translate(r.x, r.y);
+    ctx.rotate(r.angle);
+
+    // Ramp base (darker)
+    ctx.fillStyle = '#7a5a2a';
+    ctx.fillRect(-r.w / 2 - 2, -r.h / 2 - 2, r.w + 4, r.h + 4);
+
+    // Ramp surface with chevrons
+    ctx.fillStyle = '#e8a030';
+    ctx.fillRect(-r.w / 2, -r.h / 2, r.w, r.h);
+
+    // Chevron stripes
+    ctx.strokeStyle = '#c07010';
+    ctx.lineWidth = 2;
+    for (var i = -3; i < 6; i++) {
+        var sx = -r.w / 2 + i * 14;
+        ctx.beginPath();
+        ctx.moveTo(sx, -r.h / 2);
+        ctx.lineTo(sx + r.h, r.h / 2);
+        ctx.stroke();
+    }
+
+    // Arrow indicator
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(r.w / 2 - 5, 0);
+    ctx.lineTo(r.w / 2 - 15, -6);
+    ctx.lineTo(r.w / 2 - 15, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawCarShape(x, y, angle, scale, alpha) {
+    var cw = 38 * scale, ch = 20 * scale;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.globalAlpha = alpha;
+
+    // Body
+    ctx.fillStyle = '#d22';
+    ctx.beginPath();
+    ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 4 * scale);
+    ctx.fill();
+
+    // Windshield
+    ctx.fillStyle = 'rgba(100,180,255,0.6)';
+    ctx.fillRect(cw * 0.08, -ch * 0.35, cw * 0.22, ch * 0.7);
+
+    // Headlights
+    ctx.fillStyle = '#ff8';
+    ctx.fillRect(cw / 2 - 4 * scale, -ch / 2 + 2 * scale, 3 * scale, 4 * scale);
+    ctx.fillRect(cw / 2 - 4 * scale, ch / 2 - 6 * scale, 3 * scale, 4 * scale);
+
+    // Tail lights
+    ctx.fillStyle = '#f33';
+    ctx.fillRect(-cw / 2, -ch / 2 + 2 * scale, 3 * scale, 4 * scale);
+    ctx.fillRect(-cw / 2, ch / 2 - 6 * scale, 3 * scale, 4 * scale);
+
+    // Nitro flame
+    if (car.nitro && !car.airborne) {
+        ctx.fillStyle = '#f80';
+        ctx.beginPath();
+        ctx.ellipse(-cw / 2 - 6 * scale, 0, 5 * scale, 3 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff4';
+        ctx.beginPath();
+        ctx.ellipse(-cw / 2 - 3 * scale, 0, 3 * scale, 2 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
+function render() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    // Camera follow
+    camX = car.x - cvs.width / 2;
+    camY = car.y - cvs.height / 2;
+
+    ctx.save();
+    ctx.translate(-camX, -camY);
+
+    // Ground
+    ctx.fillStyle = '#4a6e2a';
+    ctx.fillRect(-500, -500, 3000, 3000);
+
+    // Grid for spatial reference
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1;
+    for (var gx = 0; gx < 2500; gx += 100) {
+        ctx.beginPath(); ctx.moveTo(gx, -500); ctx.lineTo(gx, 2500); ctx.stroke();
+    }
+    for (var gy = 0; gy < 2500; gy += 100) {
+        ctx.beginPath(); ctx.moveTo(-500, gy); ctx.lineTo(2500, gy); ctx.stroke();
+    }
+
+    // Ramps
+    for (var i = 0; i < ramps.length; i++) drawRamp(ramps[i]);
+
+    // Particles (ground level)
+    for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        ctx.globalAlpha = p.life * 0.7;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Car rendering with jump effect ──
+    var jumpH = 0; // current height (0 = ground)
+    var scale = 1;
+    var shadowOffsetX = 0, shadowOffsetY = 0;
+    var shadowScale = 1;
+    var shadowAlpha = 0.3;
+
+    if (car.airborne) {
+        jumpH = jumpArc(car.jumpT) * car.jumpHeight;
+        scale = 1 + jumpH * 0.8;          // car gets bigger (up to ~1.6x at peak)
+        shadowScale = 1 - jumpH * 0.15;    // shadow shrinks slightly
+        shadowOffsetX = jumpH * 12;         // shadow drifts right (fake light angle)
+        shadowOffsetY = jumpH * 18;         // shadow drifts down
+        shadowAlpha = 0.3 - jumpH * 0.15;  // shadow fades
+    }
+
+    // Shadow (always at ground level)
+    ctx.save();
+    ctx.translate(car.x + shadowOffsetX, car.y + shadowOffsetY);
+    ctx.rotate(car.angle);
+    ctx.scale(shadowScale, shadowScale);
+    ctx.globalAlpha = shadowAlpha;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 22, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Car (scaled up when airborne)
+    drawCarShape(car.x, car.y, car.angle, scale, 1);
+
+    // Height indicator text when airborne
+    if (car.airborne) {
+        var heightPct = Math.round(jumpArc(car.jumpT) * car.jumpHeight * 100);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('AIR! ' + heightPct + '%', car.x, car.y - 30 * scale);
+    }
+
+    ctx.restore();
+
+    // HUD
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Speed: ' + car.speed.toFixed(1) + (car.nitro ? ' [NITRO]' : ''), 20, cvs.height - 60);
+
+    var barW = 150, barH = 12;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(20, cvs.height - 40, barW, barH);
+    var speedPct = Math.min(car.speed / 10, 1);
+    ctx.fillStyle = car.nitro ? '#f80' : (car.speed > 7 ? '#f44' : '#4f4');
+    ctx.fillRect(20, cvs.height - 40, barW * speedPct, barH);
+    ctx.strokeStyle = '#888';
+    ctx.strokeRect(20, cvs.height - 40, barW, barH);
+
+    if (car.airborne) {
+        ctx.fillStyle = '#ff4';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('AIRBORNE!', cvs.width / 2, 50);
+
+        // Jump arc progress bar
+        ctx.fillStyle = '#333';
+        ctx.fillRect(cvs.width / 2 - 75, 60, 150, 8);
+        ctx.fillStyle = '#f80';
+        ctx.fillRect(cvs.width / 2 - 75, 60, 150 * car.jumpT, 8);
+    }
+}
+
+// ── Loop ──
+var last = 0;
+function loop(ts) {
+    var dt = Math.min((ts - last) / 1000, 0.05);
+    last = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

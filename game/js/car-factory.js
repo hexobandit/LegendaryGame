@@ -12,7 +12,7 @@ const CAR_COLORS = [
     '#90ff60', '#a060ff', '#ffaacc'
 ];
 const CAR_NAMES = [
-    'PLAYER', 'BLUEY',
+    'PLAYER 1', 'PLAYER 2',
     'CRUSHER', 'MANIAC', 'WRECKER', 'SMASHER',
     'BRUISER', 'DEMON', 'HAVOC', 'FURY',
     'BRAWLER', 'VANDAL', 'CHAOS'
@@ -47,7 +47,9 @@ function createCar(x, y, angle, color, name, playerIdx, carType) {
         nitroSfxCooldown: 0, driftSfxCooldown: 0,
         turnTimer: 0, prevAngle: angle,
         respawnTimer: 0, deaths: 0,
-        activePowerUp: null, powerUpTimer: 0
+        activePowerUp: null, powerUpTimer: 0,
+        airborne: false, jumpT: 0, jumpDuration: 0, jumpHeight: 0,
+        jumpVx: 0, jumpVy: 0, lastRamp: null
     };
 }
 

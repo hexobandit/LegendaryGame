@@ -152,4 +152,58 @@ const CAR_TYPES = [
         gripBonus:        0.04,
     },
 
+    // ── Miata ────────────────────────────────────────────────────
+    // Lightweight funster. Impossible to catch in tight spaces.
+    {
+        id:               'miata',
+        name:             'Miata',
+        description:      'Lightweight funster. Impossible to catch in tight spaces.',
+        bodyStyle:        'miata',
+        width:            36,
+        height:           19,
+        hp:               72,
+        mass:             0.65,
+        maxSpeedMult:     1.15,
+        accelMult:        1.18,
+        turnMult:         1.35,
+        collisionDmgMult: 0.85,
+        gripBonus:        0.06,
+    },
+
+    // ── Ram ──────────────────────────────────────────────────────
+    // Beefy pickup. Heavy rear end swings wide on turns.
+    {
+        id:               'pickup',
+        name:             'Ram',
+        description:      'Beefy pickup. Heavy rear end swings wide on turns.',
+        bodyStyle:        'pickup',
+        width:            44,
+        height:           24,
+        hp:               160,
+        mass:             1.7,
+        maxSpeedMult:     0.82,
+        accelMult:        0.85,
+        turnMult:         0.72,
+        collisionDmgMult: 1.5,
+        gripBonus:        -0.01,
+    },
+
+    // ── School Bus ───────────────────────────────────────────────
+    // Enormous and slow. Impossible to stop once moving.
+    {
+        id:               'schoolbus',
+        name:             'School Bus',
+        description:      'Enormous and slow. Impossible to stop once moving.',
+        bodyStyle:        'schoolbus',
+        width:            56,
+        height:           22,
+        hp:               250,
+        mass:             2.5,
+        maxSpeedMult:     0.5,
+        accelMult:        0.45,
+        turnMult:         0.4,
+        collisionDmgMult: 2.2,
+        gripBonus:        -0.06,
+    },
+
 ];

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monster Truck Variants — Legendary Destruction Derby</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', Arial, sans-serif; overflow-x: hidden; }
+h1 { text-align: center; padding: 24px 0 8px; font-size: 28px; color: #ffd700; text-shadow: 0 0 12px rgba(255,215,0,.4); }
+.subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 24px; }
+
+#demo-area { position: relative; margin: 0 auto 30px; }
+#demoCanvas { display: block; margin: 0 auto; border: 2px solid #333; border-radius: 8px; }
+.demo-controls { text-align: center; padding: 10px; color: #888; font-size: 13px; }
+.demo-controls b { color: #ffd700; }
+
+.category { max-width: 1200px; margin: 0 auto 30px; padding: 0 20px; }
+.cat-title { font-size: 20px; color: #ffd700; border-bottom: 2px solid #333; padding-bottom: 6px; margin-bottom: 16px; }
+.car-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.car-card {
+    background: #16213e; border: 1px solid #444; border-radius: 10px; padding: 16px;
+    position: relative; cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+}
+.car-card:hover { border-color: #ffd700; transform: translateY(-2px); }
+.car-card.selected { border-color: #ff6eb4; box-shadow: 0 0 12px rgba(255,110,180,.3); }
+.car-preview { text-align: center; margin-bottom: 10px; }
+.car-name { font-size: 17px; font-weight: bold; color: #fff; }
+.car-desc { font-size: 12px; color: #999; margin: 4px 0 10px; }
+.car-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.tag { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
+.tag-fast { background: #1a4a4a; color: #4ff; }
+.tag-heavy { background: #4a1a1a; color: #f66; }
+.tag-agile { background: #1a4a1a; color: #6f6; }
+.tag-armored { background: #3a3a1a; color: #ff4; }
+.tag-huge { background: #2a1a4a; color: #a6f; }
+.tag-grip { background: #2a4a2a; color: #afa; }
+.tag-crush { background: #4a2a2a; color: #f88; }
+
+.stats { display: grid; grid-template-columns: 50px 1fr 30px; gap: 3px; align-items: center; font-size: 11px; }
+.stat-label { color: #888; text-align: right; padding-right: 6px; }
+.stat-bar { height: 6px; background: #0a0a1e; border-radius: 3px; overflow: hidden; }
+.stat-fill { height: 100%; border-radius: 3px; }
+.stat-val { color: #666; font-size: 10px; }
+
+.size-compare { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.size-compare canvas { display: block; margin: 0 auto; border: 1px solid #333; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Monster Truck Variants</h1>
+<p class="subtitle">WASD to drive, SPACE for nitro. Click a card to switch. Wheels stick out past the chassis!</p>
+
+<div id="demo-area">
+    <canvas id="demoCanvas" width="960" height="420"></canvas>
+    <div class="demo-controls">
+        <b>WASD</b> Drive &nbsp;|&nbsp; <b>SPACE</b> Nitro &nbsp;|&nbsp;
+        <b>Click card</b> Switch truck &nbsp;|&nbsp;
+        Current: <span id="current-car" style="color:#ffd700">Gravedigger</span>
+    </div>
+</div>
+
+<div class="size-compare">
+    <div class="cat-title">Size Comparison (vs normal car)</div>
+    <canvas id="compareCanvas" width="960" height="160"></canvas>
+</div>
+
+<div class="category">
+    <div class="cat-title">All Monster Trucks</div>
+    <div class="car-grid" id="truck-grid"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  6 MONSTER TRUCK VARIANTS
+// ════════════════════════════════════════════════════════════════
+const MONSTERS = [
+    {
+        id: 'gravedigger', name: 'Gravedigger',
+        description: 'The classic. Huge tires, balanced power, crushes everything.',
+        bodyColor: '#2a8a2a', accentColor: '#1a5a1a',
+        width: 48, height: 30, tireR: 9, tireW: 7,
+        hp: 200, mass: 2.2, maxSpeedMult: 0.65, accelMult: 0.70, turnMult: 0.60,
+        collisionDmgMult: 2.0, gripBonus: 0.02,
+        tags: ['huge', 'heavy', 'armored', 'crush'],
+        decal: 'flames', decalColor: '#4f4',
+    },
+    {
+        id: 'bigfoot', name: 'Bigfoot',
+        description: 'Enormous wheels. Slow but unstoppable. Maximum crush zone.',
+        bodyColor: '#3366cc', accentColor: '#224488',
+        width: 50, height: 32, tireR: 11, tireW: 8,
+        hp: 230, mass: 2.5, maxSpeedMult: 0.55, accelMult: 0.60, turnMult: 0.50,
+        collisionDmgMult: 2.3, gripBonus: 0.04,
+        tags: ['huge', 'heavy', 'armored', 'crush', 'grip'],
+        decal: 'stripes', decalColor: '#fff',
+    },
+    {
+        id: 'eldiablo', name: 'El Diablo',
+        description: 'Fast for a monster. Sacrifices armor for raw speed.',
+        bodyColor: '#cc2222', accentColor: '#881111',
+        width: 46, height: 28, tireR: 8, tireW: 6,
+        hp: 160, mass: 1.8, maxSpeedMult: 0.78, accelMult: 0.82, turnMult: 0.70,
+        collisionDmgMult: 1.7, gripBonus: 0.01,
+        tags: ['heavy', 'fast', 'crush'],
+        decal: 'flames', decalColor: '#f80',
+    },
+    {
+        id: 'skullcrusher', name: 'Skull Crusher',
+        description: 'Maximum armor, maximum damage. A rolling fortress.',
+        bodyColor: '#333', accentColor: '#111',
+        width: 50, height: 32, tireR: 10, tireW: 7,
+        hp: 260, mass: 2.8, maxSpeedMult: 0.50, accelMult: 0.50, turnMult: 0.45,
+        collisionDmgMult: 2.5, gripBonus: -0.02,
+        tags: ['huge', 'heavy', 'armored', 'crush'],
+        decal: 'skull', decalColor: '#fff',
+    },
+    {
+        id: 'mudbog', name: 'Mud Bog',
+        description: 'Built for off-road. Insane grip on any surface.',
+        bodyColor: '#8a6a2a', accentColor: '#5a4a1a',
+        width: 48, height: 30, tireR: 10, tireW: 8,
+        hp: 190, mass: 2.1, maxSpeedMult: 0.62, accelMult: 0.68, turnMult: 0.58,
+        collisionDmgMult: 1.8, gripBonus: 0.08,
+        tags: ['huge', 'heavy', 'grip', 'crush'],
+        decal: 'mud', decalColor: '#5a3a1a',
+    },
+    {
+        id: 'nitrobeast', name: 'Nitro Beast',
+        description: 'Lightweight monster with insane acceleration. Glass cannon.',
+        bodyColor: '#cc44cc', accentColor: '#882288',
+        width: 44, height: 26, tireR: 8, tireW: 6,
+        hp: 140, mass: 1.6, maxSpeedMult: 0.82, accelMult: 0.90, turnMult: 0.72,
+        collisionDmgMult: 1.6, gripBonus: 0.0,
+        tags: ['heavy', 'fast', 'agile'],
+        decal: 'lightning', decalColor: '#ff0',
+    },
+];
+
+// Reference normal car for comparison
+const NORMAL_CAR = { width: 40, height: 22, name: 'Stock (reference)' };
+
+// ════════════════════════════════════════════════════════════════
+//  DRAW MONSTER TRUCK
+// ════════════════════════════════════════════════════════════════
+function drawMonsterTruck(c, truck, color, scale) {
+    var cw = truck.width;
+    var ch = truck.height;
+    var tR = truck.tireR;
+    var tW = truck.tireW;
+    var col = color || truck.bodyColor;
+    var s = scale || 1;
+
+    c.save();
+    c.scale(s, s);
+
+    // ── SHADOW (ground level) ──
+    c.fillStyle = 'rgba(0,0,0,.25)';
+    c.beginPath();
+    c.ellipse(3, 3, cw/2 + tW, ch/2 + 2, 0, 0, Math.PI*2);
+    c.fill();
+
+    // ── TIRES — drawn FIRST, behind everything ──
+    // Tires stick out past the chassis on all 4 corners
+    var axleFront = cw/2 - tR - 2;
+    var axleRear = -cw/2 + tR + 2;
+    var trackOuter = ch/2 + tW * 0.3;  // tires poke out past body
+
+    for (var side = -1; side <= 1; side += 2) {
+        for (var ax = 0; ax < 2; ax++) {
+            var wx = ax === 0 ? axleFront : axleRear;
+            var wy = side * trackOuter;
+
+            // Tire rubber
+            c.fillStyle = '#111';
+            c.beginPath();
+            c.ellipse(wx, wy, tR, tW, 0, 0, Math.PI*2);
+            c.fill();
+
+            // Tread pattern — chunky cross-hatches
+            c.strokeStyle = '#2a2a2a';
+            c.lineWidth = 1.2;
+            for (var t = 0; t < 8; t++) {
+                var ta = (t / 8) * Math.PI * 2 + (truck.id.charCodeAt(0) * 0.1); // offset per truck
+                var ix = Math.cos(ta) * tR * 0.45;
+                var iy = Math.sin(ta) * tW * 0.45;
+                var ox = Math.cos(ta) * tR * 0.95;
+                var oy = Math.sin(ta) * tW * 0.95;
+                c.beginPath();
+                c.moveTo(wx + ix, wy + iy);
+                c.lineTo(wx + ox, wy + oy);
+                c.stroke();
+            }
+
+            // Sidewall ring
+            c.strokeStyle = '#222';
+            c.lineWidth = 1;
+            c.beginPath();
+            c.ellipse(wx, wy, tR * 0.7, tW * 0.7, 0, 0, Math.PI*2);
+            c.stroke();
+
+            // Rim
+            c.fillStyle = '#888';
+            c.beginPath();
+            c.ellipse(wx, wy, tR * 0.35, tW * 0.35, 0, 0, Math.PI*2);
+            c.fill();
+
+            // Rim center / lug pattern
+            c.fillStyle = '#aaa';
+            c.beginPath();
+            c.arc(wx, wy, tW * 0.15, 0, Math.PI*2);
+            c.fill();
+            c.fillStyle = '#666';
+            for (var l = 0; l < 5; l++) {
+                var la = (l / 5) * Math.PI * 2;
+                c.beginPath();
+                c.arc(wx + Math.cos(la) * tR * 0.22, wy + Math.sin(la) * tW * 0.22, 0.8, 0, Math.PI*2);
+                c.fill();
+            }
+        }
+    }
+
+    // ── SUSPENSION / AXLES — visible between tires and body ──
+    c.strokeStyle = '#555';
+    c.lineWidth = 2;
+    // Front axle
+    c.beginPath();
+    c.moveTo(axleFront, -trackOuter + tW);
+    c.lineTo(axleFront, trackOuter - tW);
+    c.stroke();
+    // Rear axle
+    c.beginPath();
+    c.moveTo(axleRear, -trackOuter + tW);
+    c.lineTo(axleRear, trackOuter - tW);
+    c.stroke();
+
+    // Suspension links (angled)
+    c.strokeStyle = '#444';
+    c.lineWidth = 1.5;
+    for (var side = -1; side <= 1; side += 2) {
+        // Front shock
+        c.beginPath();
+        c.moveTo(axleFront - 2, side * (ch/2 - 3));
+        c.lineTo(axleFront, side * trackOuter);
+        c.stroke();
+        // Rear shock
+        c.beginPath();
+        c.moveTo(axleRear + 2, side * (ch/2 - 3));
+        c.lineTo(axleRear, side * trackOuter);
+        c.stroke();
+    }
+
+    // ── CHASSIS BODY — sits between the tires ──
+    var bodyInset = 2; // body narrower than full width to show tires
+    var bw = cw - 4;
+    var bh = ch - bodyInset * 2;
+
+    // Body base
+    c.fillStyle = col;
+    c.beginPath();
+    c.roundRect(-bw/2, -bh/2, bw, bh, 4);
+    c.fill();
+
+    // ── DECAL / PAINT JOB ──
+    c.save();
+    c.beginPath(); c.roundRect(-bw/2, -bh/2, bw, bh, 4); c.clip();
+
+    if (truck.decal === 'flames') {
+        c.fillStyle = truck.decalColor;
+        c.globalAlpha = 0.35;
+        for (var fi = 0; fi < 3; fi++) {
+            var fx = cw/4 - fi * 8;
+            c.beginPath();
+            c.moveTo(fx, 0);
+            c.bezierCurveTo(fx - 5, -6 - fi*2, fx - 12, -3, fx - 18, -8 - fi*2);
+            c.bezierCurveTo(fx - 12, -2, fx - 8, 1, fx, 0);
+            c.fill();
+            c.beginPath();
+            c.moveTo(fx, 0);
+            c.bezierCurveTo(fx - 5, 6 + fi*2, fx - 12, 3, fx - 18, 8 + fi*2);
+            c.bezierCurveTo(fx - 12, 2, fx - 8, -1, fx, 0);
+            c.fill();
+        }
+        c.globalAlpha = 1;
+
+    } else if (truck.decal === 'stripes') {
+        c.fillStyle = truck.decalColor;
+        c.globalAlpha = 0.15;
+        c.fillRect(-bw/2, -2, bw, 4);
+        c.globalAlpha = 0.1;
+        c.fillRect(-bw/2, -bh/2 + 2, bw, 3);
+        c.fillRect(-bw/2, bh/2 - 5, bw, 3);
+        c.globalAlpha = 1;
+
+    } else if (truck.decal === 'skull') {
+        c.fillStyle = truck.decalColor;
+        c.globalAlpha = 0.3;
+        // Skull on hood
+        c.beginPath(); c.arc(4, 0, 6, 0, Math.PI*2); c.fill();
+        // Eyes
+        c.fillStyle = '#000';
+        c.beginPath(); c.arc(6, -2, 1.5, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(6, 2, 1.5, 0, Math.PI*2); c.fill();
+        // Nose
+        c.beginPath();
+        c.moveTo(3, -0.5); c.lineTo(2, -1.5); c.lineTo(2, 1.5); c.lineTo(3, 0.5);
+        c.fill();
+        c.globalAlpha = 1;
+
+    } else if (truck.decal === 'mud') {
+        c.globalAlpha = 0.3;
+        // Mud splatter
+        for (var mi = 0; mi < 12; mi++) {
+            var mx = -bw/2 + mi * bw/11;
+            var my = (mi % 3 - 1) * (bh/3);
+            var mr = 2 + (mi * 7 % 5);
+            c.fillStyle = truck.decalColor;
+            c.beginPath(); c.arc(mx, my, mr, 0, Math.PI*2); c.fill();
+        }
+        // Mud drips from bottom
+        c.fillStyle = '#3a2a0a';
+        for (var di = 0; di < 6; di++) {
+            var dx = -bw/2 + 5 + di * bw/6;
+            c.fillRect(dx, bh/2 - 5, 2, 4 + (di%3));
+            c.fillRect(dx, -bh/2 + 1, 2, 3 + (di%2));
+        }
+        c.globalAlpha = 1;
+
+    } else if (truck.decal === 'lightning') {
+        c.strokeStyle = truck.decalColor;
+        c.lineWidth = 2;
+        c.globalAlpha = 0.4;
+        // Lightning bolt on each side
+        for (var side = -1; side <= 1; side += 2) {
+            var ly = side * (bh/4);
+            c.beginPath();
+            c.moveTo(bw/4, ly - 2 * side);
+            c.lineTo(2, ly + 1 * side);
+            c.lineTo(6, ly + 0);
+            c.lineTo(-bw/4, ly + 3 * side);
+            c.stroke();
+        }
+        c.globalAlpha = 1;
+    }
+    c.restore();
+
+    // ── Windshield ──
+    c.fillStyle = 'rgba(100,180,255,.5)';
+    c.fillRect(bw/2 - 12, -bh/2 + 4, 6, bh - 8);
+
+    // ── Rear panel ──
+    c.fillStyle = 'rgba(0,0,0,.25)';
+    c.fillRect(-bw/2, -bh/2 + 2, 7, bh - 4);
+
+    // ── Headlights (on body, not tires) ──
+    c.fillStyle = '#ffa';
+    c.fillRect(bw/2 - 2, -bh/2 + 2, 3, 3);
+    c.fillRect(bw/2 - 2, bh/2 - 5, 3, 3);
+
+    // ── Tail lights ──
+    c.fillStyle = '#f00';
+    c.fillRect(-bw/2, -bh/2 + 2, 3, 3);
+    c.fillRect(-bw/2, bh/2 - 5, 3, 3);
+
+    // ── Roof lights ──
+    c.fillStyle = '#ff8';
+    c.globalAlpha = 0.7;
+    var lightCount = truck.width > 48 ? 5 : 4;
+    for (var li = 0; li < lightCount; li++) {
+        c.beginPath();
+        c.arc(-4 + li * (8 / (lightCount - 1)), -bh/2 + 1, 1.3, 0, Math.PI*2);
+        c.fill();
+    }
+    c.globalAlpha = 1;
+
+    // ── Roll cage hint ──
+    c.strokeStyle = 'rgba(150,150,150,.35)';
+    c.lineWidth = 0.8;
+    c.beginPath();
+    c.roundRect(-bw/4, -bh/2 + 3, bw/2, bh - 6, 2);
+    c.stroke();
+
+    // ── Accent stripe (lower body) ──
+    c.fillStyle = truck.accentColor;
+    c.globalAlpha = 0.5;
+    c.fillRect(-bw/2 + 1, bh/2 - 3, bw - 2, 2);
+    c.fillRect(-bw/2 + 1, -bh/2 + 1, bw - 2, 2);
+    c.globalAlpha = 1;
+
+    c.restore();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DRAW REFERENCE CAR (for comparison)
+// ════════════════════════════════════════════════════════════════
+function drawRefCar(c, scale) {
+    var cw = 40, ch = 22;
+    c.save();
+    c.scale(scale, scale);
+    c.fillStyle = 'rgba(0,0,0,.3)';
+    c.fillRect(-cw/2 + 3, -ch/2 + 3, cw, ch);
+    c.fillStyle = '#667799';
+    c.beginPath(); c.roundRect(-cw/2, -ch/2, cw, ch, 4); c.fill();
+    c.fillStyle = 'rgba(100,180,255,.55)';
+    c.fillRect(cw/2 - 14, -ch/2 + 3, 8, ch - 6);
+    c.fillStyle = 'rgba(0,0,0,.3)';
+    c.fillRect(-cw/2, -ch/2 + 2, 8, ch - 4);
+    c.fillStyle = '#ffa';
+    c.fillRect(cw/2 - 3, -ch/2 + 2, 3, 4);
+    c.fillRect(cw/2 - 3, ch/2 - 6, 3, 4);
+    c.fillStyle = '#f00';
+    c.fillRect(-cw/2, -ch/2 + 2, 3, 4);
+    c.fillRect(-cw/2, ch/2 - 6, 3, 4);
+    c.restore();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SIZE COMPARISON CANVAS
+// ════════════════════════════════════════════════════════════════
+var compCanvas = document.getElementById('compareCanvas');
+var cc = compCanvas.getContext('2d');
+
+function drawComparison() {
+    cc.fillStyle = '#1a1a2e';
+    cc.fillRect(0, 0, compCanvas.width, compCanvas.height);
+
+    // Ground line
+    cc.strokeStyle = '#333';
+    cc.lineWidth = 1;
+    cc.beginPath(); cc.moveTo(20, 120); cc.lineTo(940, 120); cc.stroke();
+
+    // Normal car first
+    var px = 70;
+    cc.save();
+    cc.translate(px, 90);
+    drawRefCar(cc, 3);
+    cc.restore();
+    cc.fillStyle = '#888'; cc.font = '11px Arial'; cc.textAlign = 'center';
+    cc.fillText('Stock (40x22)', px, 140);
+
+    px = 190;
+    // All monsters
+    for (var i = 0; i < MONSTERS.length; i++) {
+        var mt = MONSTERS[i];
+        cc.save();
+        cc.translate(px, 88);
+        drawMonsterTruck(cc, mt, mt.bodyColor, 3);
+        cc.restore();
+        cc.fillStyle = '#aaa'; cc.font = '11px Arial'; cc.textAlign = 'center';
+        cc.fillText(mt.name + ' (' + mt.width + 'x' + mt.height + ')', px, 140);
+        px += 130;
+    }
+}
+drawComparison();
+
+// ════════════════════════════════════════════════════════════════
+//  INTERACTIVE DEMO
+// ════════════════════════════════════════════════════════════════
+var dCanvas = document.getElementById('demoCanvas');
+var dc = dCanvas.getContext('2d');
+var keys = {};
+document.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
+
+var demoCar = { x: 480, y: 200, angle: 0, vx: 0, vy: 0, truckIdx: 0 };
+
+// Scattered debris for smashing feel
+var demoDebris = [];
+for (var i = 0; i < 20; i++) {
+    demoDebris.push({
+        x: 80 + Math.random() * 800, y: 60 + Math.random() * 300,
+        r: 4 + Math.random() * 8, color: ['#8a6a3a','#666','#884422','#556'][i%4],
+        vx: 0, vy: 0, hp: 3
+    });
+}
+
+function demoLoop() {
+    var mt = MONSTERS[demoCar.truckIdx];
+    var maxSpd = 3.5 * mt.maxSpeedMult;
+    var acc = 0.08 * mt.accelMult;
+    var turn = 0.045 * mt.turnMult;
+    var nitroMax = maxSpd * 1.6;
+    var nitro = !!keys[' '];
+
+    if (keys['w'] || keys['arrowup']) {
+        demoCar.vx += Math.cos(demoCar.angle) * acc;
+        demoCar.vy += Math.sin(demoCar.angle) * acc;
+    }
+    if (keys['s'] || keys['arrowdown']) {
+        demoCar.vx -= Math.cos(demoCar.angle) * acc * 0.5;
+        demoCar.vy -= Math.sin(demoCar.angle) * acc * 0.5;
+    }
+    var spd = Math.sqrt(demoCar.vx * demoCar.vx + demoCar.vy * demoCar.vy);
+    if (spd > 0.3) {
+        if (keys['a'] || keys['arrowleft']) demoCar.angle -= turn;
+        if (keys['d'] || keys['arrowright']) demoCar.angle += turn;
+    }
+    if (nitro) {
+        demoCar.vx += Math.cos(demoCar.angle) * acc * 0.5;
+        demoCar.vy += Math.sin(demoCar.angle) * acc * 0.5;
+    }
+
+    demoCar.vx *= 0.985;
+    demoCar.vy *= 0.985;
+    spd = Math.sqrt(demoCar.vx * demoCar.vx + demoCar.vy * demoCar.vy);
+    var limit = nitro ? nitroMax : maxSpd;
+    if (spd > limit) { demoCar.vx = demoCar.vx/spd*limit; demoCar.vy = demoCar.vy/spd*limit; }
+    demoCar.x += demoCar.vx;
+    demoCar.y += demoCar.vy;
+
+    // Wrap
+    if (demoCar.x < -40) demoCar.x = dCanvas.width + 40;
+    if (demoCar.x > dCanvas.width + 40) demoCar.x = -40;
+    if (demoCar.y < -40) demoCar.y = dCanvas.height + 40;
+    if (demoCar.y > dCanvas.height + 40) demoCar.y = -40;
+
+    // Debris collision
+    for (var i = 0; i < demoDebris.length; i++) {
+        var d = demoDebris[i];
+        var dx = d.x - demoCar.x, dy = d.y - demoCar.y;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < mt.width * 1.5 + d.r && d.hp > 0) {
+            var push = 3 / (d.r * 0.1);
+            d.vx += (dx/dist) * push;
+            d.vy += (dy/dist) * push;
+            d.hp--;
+        }
+        d.x += d.vx; d.y += d.vy;
+        d.vx *= 0.92; d.vy *= 0.92;
+        if (d.hp <= 0 && Math.random() < 0.02) {
+            d.hp = 3;
+            d.x = 80 + Math.random() * 800;
+            d.y = 60 + Math.random() * 300;
+        }
+    }
+
+    // ── Draw ──
+    dc.fillStyle = '#2a2a40';
+    dc.fillRect(0, 0, dCanvas.width, dCanvas.height);
+
+    // Grid
+    dc.strokeStyle = 'rgba(255,255,255,.04)';
+    dc.lineWidth = 1;
+    for (var x = 0; x < dCanvas.width; x += 40) { dc.beginPath(); dc.moveTo(x, 0); dc.lineTo(x, dCanvas.height); dc.stroke(); }
+    for (var y = 0; y < dCanvas.height; y += 40) { dc.beginPath(); dc.moveTo(0, y); dc.lineTo(dCanvas.width, y); dc.stroke(); }
+
+    // Debris
+    for (var i = 0; i < demoDebris.length; i++) {
+        var d = demoDebris[i];
+        if (d.hp <= 0) continue;
+        dc.fillStyle = d.color;
+        dc.globalAlpha = 0.6;
+        dc.beginPath(); dc.arc(d.x, d.y, d.r, 0, Math.PI*2); dc.fill();
+        dc.globalAlpha = 1;
+    }
+
+    // Monster truck
+    dc.save();
+    dc.translate(demoCar.x, demoCar.y);
+    dc.rotate(demoCar.angle);
+    drawMonsterTruck(dc, mt, mt.bodyColor, 3);
+    dc.restore();
+
+    // Nitro flame
+    if (nitro && spd > 0.5) {
+        dc.save();
+        dc.translate(demoCar.x, demoCar.y);
+        dc.rotate(demoCar.angle);
+        var fl = 18 + Math.random() * 12;
+        dc.fillStyle = '#f80'; dc.globalAlpha = 0.7;
+        dc.beginPath();
+        dc.moveTo(-mt.width/2*3, 0);
+        dc.lineTo(-mt.width/2*3 - fl, -6 - Math.random()*4);
+        dc.lineTo(-mt.width/2*3 - fl*0.6, 0);
+        dc.lineTo(-mt.width/2*3 - fl, 6 + Math.random()*4);
+        dc.closePath(); dc.fill();
+        dc.fillStyle = '#ff0'; dc.globalAlpha = 0.4;
+        dc.beginPath();
+        dc.moveTo(-mt.width/2*3, 0);
+        dc.lineTo(-mt.width/2*3 - fl*0.5, -3);
+        dc.lineTo(-mt.width/2*3 - fl*0.3, 0);
+        dc.lineTo(-mt.width/2*3 - fl*0.5, 3);
+        dc.closePath(); dc.fill();
+        dc.globalAlpha = 1;
+        dc.restore();
+    }
+
+    // HUD
+    dc.fillStyle = '#ffd700'; dc.font = 'bold 16px Arial'; dc.textAlign = 'left';
+    dc.fillText(mt.name, 10, 24);
+    dc.fillStyle = '#888'; dc.font = '12px Arial';
+    dc.fillText(mt.description, 10, 42);
+
+    requestAnimationFrame(demoLoop);
+}
+requestAnimationFrame(demoLoop);
+
+// ════════════════════════════════════════════════════════════════
+//  BUILD CARDS
+// ════════════════════════════════════════════════════════════════
+var TAG_CLASSES = {
+    fast:'tag-fast', heavy:'tag-heavy', agile:'tag-agile',
+    armored:'tag-armored', huge:'tag-huge', grip:'tag-grip', crush:'tag-crush'
+};
+
+function statBar(label, val, max, color) {
+    var pct = Math.min(val/max*100, 100);
+    return '<span class="stat-label">' + label + '</span>' +
+        '<span class="stat-bar"><span class="stat-fill" style="width:'+pct+'%;background:'+color+'"></span></span>' +
+        '<span class="stat-val">' + val + '</span>';
+}
+
+var grid = document.getElementById('truck-grid');
+MONSTERS.forEach(function(mt, idx) {
+    var card = document.createElement('div');
+    card.className = 'car-card' + (idx === 0 ? ' selected' : '');
+    card.onclick = function() {
+        demoCar.truckIdx = idx;
+        document.getElementById('current-car').textContent = mt.name;
+        document.querySelectorAll('.car-card').forEach(function(c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+    };
+
+    var cvs = document.createElement('canvas');
+    cvs.width = 280; cvs.height = 130;
+    var pc = cvs.getContext('2d');
+    pc.save();
+    pc.translate(140, 55);
+    drawMonsterTruck(pc, mt, mt.bodyColor, 3.5);
+    pc.restore();
+
+    var tagsHtml = (mt.tags || []).map(function(t) {
+        return '<span class="tag ' + (TAG_CLASSES[t]||'') + '">' + t + '</span>';
+    }).join('');
+
+    var statsHtml = '<div class="stats">' +
+        statBar('HP', mt.hp, 280, '#4f4') +
+        statBar('SPD', Math.round(mt.maxSpeedMult*100), 100, '#4ff') +
+        statBar('ACC', Math.round(mt.accelMult*100), 100, '#ff4') +
+        statBar('TURN', Math.round(mt.turnMult*100), 100, '#fa4') +
+        statBar('MASS', Math.round(mt.mass*100), 300, '#f66') +
+        statBar('GRIP', Math.round((1+mt.gripBonus)*100), 115, '#a6f') +
+        statBar('DMG', Math.round(mt.collisionDmgMult*100), 260, '#f4a') +
+        '</div>';
+
+    card.innerHTML =
+        '<div class="car-preview"></div>' +
+        '<div class="car-name">' + mt.name + '</div>' +
+        '<div class="car-desc">' + mt.description + '</div>' +
+        '<div class="car-tags">' + tagsHtml + '</div>' +
+        statsHtml;
+
+    card.querySelector('.car-preview').appendChild(cvs);
+    grid.appendChild(card);
+});
+</script>
+</body>
+</html>

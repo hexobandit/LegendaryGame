@@ -27,15 +27,8 @@ function selectMode(mode) {
                         <span>Pick your color:</span>
                         <div class="color-swatches" id="p1-swatches"></div>
                     </div>
-                    <div class="pkey">
-                        <table>
-                            <tr><td>A / &#8592;</td><td>Steer Left</td></tr>
-                            <tr><td>D / &#8594;</td><td>Steer Right</td></tr>
-                            <tr><td>S / &#8595;</td><td>Brake</td></tr>
-                            <tr><td>W / &#8593;</td><td>Nitro</td></tr>
-                            <tr><td>Space</td><td>Handbrake</td></tr>
-                            <tr><td>R</td><td>Reset Position</td></tr>
-                        </table>
+                    <div class="pkey-compact">
+                        <b>A/D</b> Steer &nbsp;<b>W</b> Nitro &nbsp;<b>S</b> Brake &nbsp;<b>Space</b> Drift &nbsp;<b>R</b> Reset
                     </div>
                 </div>
             </div>`;
@@ -53,14 +46,8 @@ function selectMode(mode) {
                         <span>Pick your color:</span>
                         <div class="color-swatches" id="p1-swatches"></div>
                     </div>
-                    <div class="pkey">
-                        <table>
-                            <tr><td>A</td><td>Steer Left</td></tr>
-                            <tr><td>D</td><td>Steer Right</td></tr>
-                            <tr><td>S</td><td>Brake</td></tr>
-                            <tr><td>W</td><td>Nitro</td></tr>
-                            <tr><td>Q</td><td>Handbrake</td></tr>
-                        </table>
+                    <div class="pkey-compact">
+                        <b>A/D</b> Steer &nbsp;<b>W</b> Nitro &nbsp;<b>S</b> Brake &nbsp;<b>Q</b> Drift
                     </div>
                 </div>
                 <div class="player-col blue" id="p2-col">
@@ -73,14 +60,8 @@ function selectMode(mode) {
                         <span>Pick your color:</span>
                         <div class="color-swatches" id="p2-swatches"></div>
                     </div>
-                    <div class="pkey">
-                        <table>
-                            <tr><td>&#8592;</td><td>Steer Left</td></tr>
-                            <tr><td>&#8594;</td><td>Steer Right</td></tr>
-                            <tr><td>&#8595;</td><td>Brake</td></tr>
-                            <tr><td>&#8593;</td><td>Nitro</td></tr>
-                            <tr><td>M</td><td>Handbrake</td></tr>
-                        </table>
+                    <div class="pkey-compact">
+                        <b>\u2190/\u2192</b> Steer &nbsp;<b>\u2191</b> Nitro &nbsp;<b>\u2193</b> Brake &nbsp;<b>M</b> Drift
                     </div>
                 </div>
             </div>`;
@@ -151,12 +132,12 @@ function drawCarPreview(pctx, ct, color, scale) {
     pctx.scale(s, s);
 
     // Shadow — heavier vehicles get extra offset
-    var shadowOff = (bodyStyle === 'suv' || bodyStyle === 'truck_heavy' || bodyStyle === 'warrig') ? 5 : 3;
+    var shadowOff = (['suv','truck_heavy','warrig','pickup','schoolbus'].indexOf(bodyStyle) >= 0) ? 5 : 3;
     pctx.fillStyle = 'rgba(0,0,0,.3)';
     pctx.fillRect(-cw/2 + shadowOff, -ch/2 + shadowOff, cw, ch);
 
     // Body
-    var cornerRadius = bodyStyle === 'compact' ? 8 : 4;
+    var cornerRadius = (bodyStyle === 'compact' || bodyStyle === 'miata') ? 8 : bodyStyle === 'schoolbus' ? 3 : 4;
     pctx.fillStyle = color;
     pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, cornerRadius); pctx.fill();
 
@@ -164,6 +145,8 @@ function drawCarPreview(pctx, ct, color, scale) {
     pctx.fillStyle = 'rgba(100,180,255,.55)';
     if (bodyStyle === 'sport') {
         pctx.fillRect(cw/2 - 14, -ch/2 + 5, 8, ch - 10);
+    } else if (bodyStyle === 'schoolbus') {
+        pctx.fillRect(cw/2 - 10, -ch/2 + 2, 6, ch - 4);
     } else {
         pctx.fillRect(cw/2 - 14, -ch/2 + 3, 8, ch - 6);
     }
@@ -327,6 +310,106 @@ function drawCarPreview(pctx, ct, color, scale) {
         pctx.fillStyle = '#111';
         pctx.font = 'bold 6px Arial'; pctx.textAlign = 'center';
         pctx.fillText('3', -1.5, 2.2);
+
+    } else if (bodyStyle === 'miata') {
+        // Cover default windshield
+        pctx.fillStyle = color;
+        pctx.fillRect(cw/2 - 15, -ch/2 + 2, 10, ch - 4);
+        // Small curved windshield
+        pctx.fillStyle = 'rgba(120,200,255,.45)';
+        pctx.beginPath(); pctx.arc(3, 0, 7, -1.2, 1.2); pctx.fill();
+        // Soft-top hint
+        pctx.fillStyle = 'rgba(0,0,0,.15)';
+        pctx.beginPath(); pctx.roundRect(-5, -ch/2 + 2, 10, ch - 4, 3); pctx.fill();
+        // Smile grille
+        pctx.strokeStyle = '#333'; pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(cw/2 - 1, -ch/4);
+        pctx.quadraticCurveTo(cw/2 + 2, 0, cw/2 - 1, ch/4);
+        pctx.stroke();
+        // Small round tail lights
+        pctx.fillStyle = '#f44';
+        pctx.beginPath(); pctx.arc(-cw/2 + 1, -ch/2 + 4, 2, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(-cw/2 + 1, ch/2 - 4, 2, 0, Math.PI*2); pctx.fill();
+        // Exhaust
+        pctx.fillStyle = '#888';
+        pctx.beginPath(); pctx.arc(-cw/2 - 1, ch/3, 1.5, 0, Math.PI*2); pctx.fill();
+
+    } else if (bodyStyle === 'pickup') {
+        // Open truck bed
+        pctx.fillStyle = 'rgba(0,0,0,.2)';
+        pctx.fillRect(-cw/2, -ch/2 + 2, cw * 0.4, ch - 4);
+        // Bed rails
+        pctx.fillStyle = '#777';
+        pctx.fillRect(-cw/2 + 2, -ch/2 - 1, cw * 0.35, 1.5);
+        pctx.fillRect(-cw/2 + 2, ch/2 - 0.5, cw * 0.35, 1.5);
+        // Chrome grille
+        pctx.fillStyle = '#ccc';
+        pctx.fillRect(cw/2, -ch/2 + 1, 3, ch - 2);
+        pctx.fillStyle = '#999';
+        for (var i = 0; i < 4; i++) {
+            var gy = -ch/2 + 3 + i * ((ch - 6) / 4);
+            pctx.fillRect(cw/2, gy, 3, 1.5);
+        }
+        // Chrome bumper
+        pctx.fillStyle = '#bbb';
+        pctx.fillRect(cw/2 + 2, -ch/2 + 2, 2, ch - 4);
+        // Tow hitch
+        pctx.fillStyle = '#666';
+        pctx.fillRect(-cw/2 - 4, -2, 5, 4);
+        pctx.fillStyle = '#888';
+        pctx.fillRect(-cw/2 - 3, -1, 3, 2);
+        // Running boards
+        pctx.fillStyle = '#555';
+        pctx.fillRect(-cw/6, -ch/2 - 1, cw/3, 1.5);
+        pctx.fillRect(-cw/6, ch/2 - 0.5, cw/3, 1.5);
+        // Exhaust tip
+        pctx.fillStyle = '#888';
+        pctx.beginPath(); pctx.arc(-cw/2 - 2, ch/4, 2, 0, Math.PI*2); pctx.fill();
+        pctx.fillStyle = '#555';
+        pctx.beginPath(); pctx.arc(-cw/2 - 2, ch/4, 1.2, 0, Math.PI*2); pctx.fill();
+
+    } else if (bodyStyle === 'schoolbus') {
+        // Window row
+        pctx.fillStyle = 'rgba(100,180,255,.45)';
+        for (var i = 0; i < 7; i++) {
+            var wx = -cw/2 + 10 + i * (cw - 20) / 7;
+            pctx.fillRect(wx, -ch/2 + 2, 4, 3);
+            pctx.fillRect(wx, ch/2 - 5, 4, 3);
+        }
+        // Window dividers
+        pctx.fillStyle = '#222';
+        for (var i = 0; i <= 7; i++) {
+            var wx = -cw/2 + 9 + i * (cw - 20) / 7;
+            pctx.fillRect(wx, -ch/2 + 1.5, 1, 4);
+            pctx.fillRect(wx, ch/2 - 5.5, 1, 4);
+        }
+        // Black bumpers
+        pctx.fillStyle = '#222';
+        pctx.fillRect(cw/2, -ch/2 + 1, 3, ch - 2);
+        pctx.fillRect(-cw/2 - 2, -ch/2 + 1, 3, ch - 2);
+        // STOP sign arm
+        pctx.fillStyle = '#d00';
+        pctx.fillRect(cw/4, -ch/2 - 3, 8, 3);
+        pctx.fillStyle = '#fff'; pctx.font = 'bold 2.5px Arial'; pctx.textAlign = 'center';
+        pctx.fillText('STOP', cw/4 + 4, -ch/2 - 1);
+        // Red flashing lights
+        pctx.fillStyle = '#f22';
+        pctx.beginPath(); pctx.arc(cw/2 - 4, -ch/2 - 0.5, 2, 0, Math.PI*2); pctx.fill();
+        pctx.beginPath(); pctx.arc(cw/2 - 4, ch/2 + 0.5, 2, 0, Math.PI*2); pctx.fill();
+        // Amber side markers
+        pctx.fillStyle = '#fa0'; pctx.globalAlpha = 0.8;
+        pctx.fillRect(0, -ch/2 - 0.5, 3, 1.5);
+        pctx.fillRect(0, ch/2 - 1, 3, 1.5);
+        pctx.fillRect(-cw/4, -ch/2 - 0.5, 3, 1.5);
+        pctx.fillRect(-cw/4, ch/2 - 1, 3, 1.5);
+        pctx.globalAlpha = 1;
+        // Rear emergency door
+        pctx.strokeStyle = '#222'; pctx.lineWidth = 0.8;
+        pctx.strokeRect(-cw/2 + 1, -ch/4, 5, ch/2);
+        // Roof tint
+        pctx.fillStyle = 'rgba(0,0,0,.1)';
+        pctx.fillRect(-cw/3, -ch/2 + 4, cw * 0.6, ch - 8);
     }
 
     pctx.restore();
@@ -376,7 +459,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
 
     // Preview canvas — sized to fill the card nicely
     var cvs = document.createElement('canvas');
-    cvs.width = 220; cvs.height = 110;
+    cvs.width = 200; cvs.height = 90;
     cvs.className = 'car-preview-canvas';
 
     // Arrow left
@@ -425,7 +508,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
         pctx.clearRect(0, 0, cvs.width, cvs.height);
         pctx.save();
         pctx.translate(cvs.width / 2, cvs.height / 2);
-        drawCarPreview(pctx, ct, color, 3.2);
+        drawCarPreview(pctx, ct, color, 2.8);
         pctx.restore();
 
         // Update info
@@ -442,7 +525,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
 
         var stats = document.createElement('div');
         stats.className = 'car-stats';
-        drawStatBar(stats, 'HP',    ct.hp,           180, '#4f4');
+        drawStatBar(stats, 'HP',    ct.hp,           260, '#4f4');
         drawStatBar(stats, 'SPEED', Math.round(ct.maxSpeedMult * 100), 130, '#4ff');
         drawStatBar(stats, 'ACCEL', Math.round(ct.accelMult * 100),    130, '#ff4');
         drawStatBar(stats, 'TURN',  Math.round(ct.turnMult * 100),     130, '#fa4');
@@ -476,7 +559,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
         pctx.clearRect(0, 0, cvs.width, cvs.height);
         pctx.save();
         pctx.translate(cvs.width / 2, cvs.height / 2);
-        drawCarPreview(pctx, ct, color, 3.2);
+        drawCarPreview(pctx, ct, color, 2.8);
         pctx.restore();
     };
 }
@@ -544,7 +627,7 @@ function startGame() {
     gameTime = 0;
     score = 0;
     particles = []; skidMarks = []; debris = []; floatingTexts = [];
-    powerUps = []; powerUpSpawnTimer = 0;
+    powerUps = []; powerUpSpawnTimer = 0; breakables = [];
     generateTerrain();
     spawnCars();
 }
