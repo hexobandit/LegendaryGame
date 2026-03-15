@@ -129,6 +129,31 @@ function playSfx(type) {
             o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.2);
         });
     }
+    else if (type === 'tada') {
+        // Celebratory fanfare: ascending arpeggio with shimmer
+        const notes = [523, 659, 784, 988, 1318];
+        notes.forEach((f, i) => {
+            const o = ac.createOscillator();
+            o.type = 'sine';
+            const gg = ac.createGain();
+            o.frequency.value = f;
+            gg.gain.setValueAtTime(0.22, now + i * 0.1);
+            gg.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+            o.connect(gg); gg.connect(ac.destination);
+            o.start(now + i * 0.1); o.stop(now + i * 0.1 + 0.45);
+        });
+        // Final shimmer chord
+        [1047, 1318, 1568].forEach((f) => {
+            const o = ac.createOscillator();
+            o.type = 'triangle';
+            const gg = ac.createGain();
+            o.frequency.value = f;
+            gg.gain.setValueAtTime(0.15, now + 0.5);
+            gg.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+            o.connect(gg); gg.connect(ac.destination);
+            o.start(now + 0.5); o.stop(now + 1.3);
+        });
+    }
 }
 
 // Throttle SFX so we don't spam

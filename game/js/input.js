@@ -30,6 +30,11 @@ function togglePause() {
 }
 
 window.addEventListener('keydown', e => {
+    // Let input fields handle their own keys
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        if (e.code === 'Escape') { e.target.blur(); e.preventDefault(); }
+        return;
+    }
     if (e.code === 'Escape') { togglePause(); e.preventDefault(); return; }
     if (e.code === 'F11') { e.preventDefault(); toggleFullscreen(); return; }
     keys[e.code] = true; e.preventDefault();

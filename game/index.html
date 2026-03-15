@@ -23,27 +23,74 @@
     <canvas id="intro-canvas"></canvas>
 </div>
 
-<!-- ── Start screen ── -->
-<div id="start-screen" class="overlay">
-    <h2>Choose Your Mode</h2>
-    <div class="mode-selector">
-        <button class="mode-btn active-single" id="btn-single" onclick="selectMode('single')">SINGLE PLAYER</button>
-        <button class="mode-btn" id="btn-multi" onclick="selectMode('multi')">MULTIPLAYER</button>
+<!-- ── Menu Step 2: Player Mode ── -->
+<div id="menu-step-2" class="overlay menu-step" style="display:none;">
+    <div class="step-header">
+        <div class="step-title">LEGENDARY DESTRUCTION DERBY</div>
     </div>
-    <div class="variant-selector" id="variant-selector"></div>
-    <div id="setup-panel">
-        <!-- Dynamically filled by selectMode() -->
+    <h2 class="step-subtitle">Choose Your Mode</h2>
+    <div class="menu-cards" id="player-mode-cards"></div>
+    <div class="step-bottom-bar">
+        <button class="hs-btn" onclick="showHighScoresModal()">HIGH SCORES</button>
+        <button class="fullscreen-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
     </div>
+    <div class="step-dots" id="dots-step-2"></div>
+</div>
+
+<!-- ── Menu Step 3: Game Type ── -->
+<div id="menu-step-3" class="overlay menu-step" style="display:none;">
+    <div class="step-header">
+        <button class="back-btn" onclick="navigateMenu(2)">&larr; BACK</button>
+        <div class="step-title-sm">Game Type</div>
+    </div>
+    <div class="menu-cards menu-cards-wrap" id="game-mode-cards"></div>
+    <div class="step-dots" id="dots-step-3"></div>
+</div>
+
+<!-- ── Menu Step 4: Car Select ── -->
+<div id="menu-step-4" class="overlay menu-step" style="display:none;">
+    <div class="step-header">
+        <button class="back-btn" onclick="navigateMenu(3)">&larr; BACK</button>
+        <div class="step-title-sm">Car Setup</div>
+    </div>
+    <div id="car-setup-panel"></div>
+    <button class="next-btn" onclick="navigateMenu(5)">NEXT &rarr;</button>
+    <div class="step-dots" id="dots-step-4"></div>
+</div>
+
+<!-- ── Menu Step 5: Map Select ── -->
+<div id="menu-step-5" class="overlay menu-step" style="display:none;">
+    <div class="step-header">
+        <button class="back-btn" onclick="navigateMenu(4)">&larr; BACK</button>
+        <div class="step-title-sm">Choose Arena</div>
+    </div>
+    <div class="menu-cards menu-cards-wrap" id="map-select-cards"></div>
     <button class="start-btn" onclick="startGame()">START</button>
-    <button class="fullscreen-btn" onclick="toggleFullscreen()" style="margin-top:12px;">FULLSCREEN</button>
-    <div class="sub-note" id="sub-note-text">Auto-throttle is ON — just steer & smash! Destroy all 11 AI opponents to win.</div>
+    <div class="step-dots" id="dots-step-5"></div>
+</div>
+
+<!-- ── High Scores Modal ── -->
+<div id="highscores-modal" class="overlay" style="display:none;">
+    <div class="hs-modal-inner">
+        <div class="hs-modal-header">
+            <h2>HIGH SCORES</h2>
+            <button class="hs-close-btn" onclick="hideHighScoresModal()">&times;</button>
+        </div>
+        <div class="hs-tabs" id="hs-tabs"></div>
+        <div class="hs-body" id="hs-body"></div>
+    </div>
 </div>
 
 <!-- ── Game over screen ── -->
 <div id="game-over-screen" class="overlay">
     <h1 id="go-title">GAME OVER</h1>
+    <div id="go-highscore-banner" style="display:none;"></div>
     <div id="game-over-stats"></div>
-    <button class="restart-btn" onclick="showStartScreen()">PLAY AGAIN</button>
+    <div id="go-leaderboard"></div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="restart-btn" onclick="showStartScreen()">PLAY AGAIN</button>
+        <button class="hs-btn" onclick="showHighScoresModal()" style="margin-top:0;">HIGH SCORES</button>
+    </div>
 </div>
 
 <!-- ── Scripts: loaded in dependency order ── -->
@@ -56,6 +103,7 @@
 <script src="js/audio.js"></script>
 <script src="js/particles.js"></script>
 <script src="js/scoring.js"></script>
+<script src="js/highscores.js"></script>
 <script src="js/physics.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/car-factory.js"></script>

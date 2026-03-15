@@ -117,7 +117,7 @@ function checkSpeedBonus(car, dt) {
 
 // ── Near-miss check (called from checkCollisions) ──
 
-function checkNearMiss(i, j) {
+function checkNearMiss(i, j, dist) {
     var a = cars[i], b = cars[j];
     if (!a.alive || !b.alive) return;
     // At least one must be a player
@@ -125,9 +125,13 @@ function checkNearMiss(i, j) {
     // Both must be moving
     if (a.speed < 2 || b.speed < 2) return;
 
-    var dist = Math.hypot(a.x - b.x, a.y - b.y);
-    // Near miss: within 50px but not colliding (> 35px)
-    if (dist > 35 && dist < 50) {
+    // Collision radius based on actual car sizes
+    var aR = Math.max(a.width || 40, a.height || 22) * 0.5;
+    var bR = Math.max(b.width || 40, b.height || 22) * 0.5;
+    var touchDist = aR + bR;          // cars touching edge-to-edge
+    var nearDist = touchDist + 20;    // near-miss zone extends 20px beyond touch
+
+    if (dist > touchDist && dist < nearDist) {
         var key = Math.min(i, j) + '-' + Math.max(i, j);
         if (nearMissCooldowns[key]) return; // on cooldown
         nearMissCooldowns[key] = 60; // 1 second cooldown at 60fps

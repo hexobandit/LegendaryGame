@@ -260,10 +260,10 @@ function moveCar(car) {
             let dot = car.vx*nx + car.vy*ny;
             car.vx -= 1.5*dot*nx; car.vy -= 1.5*dot*ny;
             car.vx *= 0.6; car.vy *= 0.6;
-            if (Math.abs(dot) > 2) {
+            if (Math.abs(dot) > 2 && car.alive) {
                 car.health -= Math.abs(dot)*2;
                 spawnSparks(car.x - nx*20, car.y - ny*20, 5);
-                playSfxThrottled('bump', 80);
+                playSfxThrottled('bump', 120);
             }
         }
     }
@@ -358,7 +358,7 @@ function moveCar(car) {
                 car.vy *= 0.95;
             }
 
-            playSfxThrottled('bump', 100);
+            if (car.alive) playSfxThrottled('bump', 120);
 
             if (b.hp <= 0) {
                 // Barrel explosion!
@@ -380,7 +380,7 @@ function moveCar(car) {
                         }
                     }
                     spawnExplosion(b.x, b.y, '#f80');
-                    playSfx('explode');
+                    playSfxThrottled('explode', 150);
                 }
 
                 // Destroy — spawn debris and sparks
@@ -473,11 +473,18 @@ function checkCollisions() {
             // Team friendly fire check
             if (activeMode && activeMode.friendlyFire === false && a.team && b.team && a.team === b.team) continue;
             let dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
-            // Near-miss detection (close but not touching)
-            if (dist >= 35 && dist < 50) {
-                checkNearMiss(i, j);
+            // Size-based collision radius
+            let aR = Math.max(a.width||40, a.height||22) * 0.5;
+            let bR = Math.max(b.width||40, b.height||22) * 0.5;
+            let touchDist = aR + bR;
+            // Near-miss detection (close but not touching, and no recent collision)
+            if (dist >= touchDist && dist < touchDist + 20) {
+                checkNearMiss(i, j, dist);
             }
-            if (dist < 35 && dist > 0) {
+            if (dist < touchDist && dist > 0) {
+                // Block near-miss for this pair — they're colliding
+                var nmKey = Math.min(i, j) + '-' + Math.max(i, j);
+                nearMissCooldowns[nmKey] = 90; // 1.5s cooldown after actual collision
                 // Infection spreads on contact
                 if (a.infected !== b.infected && activeMode && activeMode.id.indexOf('infected') >= 0) {
                     let victim = a.infected ? b : a;
@@ -494,7 +501,7 @@ function checkCollisions() {
                     }
                 }
 
-                let nx = dx/dist, ny = dy/dist, overlap = 35-dist;
+                let nx = dx/dist, ny = dy/dist, overlap = touchDist-dist;
 
                 // Mass-based separation and velocity exchange
                 let totalMass = (a.carType?.mass||1) + (b.carType?.mass||1);
@@ -538,8 +545,8 @@ function checkCollisions() {
                     spawnSparks(cx, cy, impact*2|0);
                     spawnSmoke(cx, cy, impact|0);
 
-                    if (impact > 4) playSfxThrottled('hit', 60);
-                    else playSfxThrottled('bump', 60);
+                    if (impact > 4) playSfxThrottled('hit', 100);
+                    else playSfxThrottled('bump', 100);
 
                     if (impact > 4) {
                         for (let k = 0; k < 3; k++) {

@@ -113,10 +113,10 @@ function spawnCars() {
 
         // Players get front slots
         if (numPlayers === 1) {
-            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, 'PLAYER', 0, p1Type));
+            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, (typeof playerName !== 'undefined' && playerName) || 'PLAYER', 0, p1Type));
         } else {
-            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, CAR_NAMES[0], 0, p1Type));
-            cars.push(createCar(allSlots[1].x, allSlots[1].y, faceAngle, P2_COLOR, CAR_NAMES[1], 1, p2Type));
+            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, (typeof playerName !== 'undefined' && playerName) || CAR_NAMES[0], 0, p1Type));
+            cars.push(createCar(allSlots[1].x, allSlots[1].y, faceAngle, P2_COLOR, (typeof player2Name !== 'undefined' && player2Name) || CAR_NAMES[1], 1, p2Type));
         }
         for (var i = 0; i < numAI; i++) {
             var slot = allSlots[numPlayers + i];
@@ -130,10 +130,10 @@ function spawnCars() {
             ));
         }
     } else if (numPlayers === 1) {
-        cars.push(createCar(cx, cy, -Math.PI / 2, P1_COLOR, 'PLAYER', 0, p1Type));
+        cars.push(createCar(cx, cy, -Math.PI / 2, P1_COLOR, (typeof playerName !== 'undefined' && playerName) || 'PLAYER', 0, p1Type));
     } else {
-        cars.push(createCar(cx - 120, cy, -Math.PI / 2, P1_COLOR, CAR_NAMES[0], 0, p1Type));
-        cars.push(createCar(cx + 120, cy, -Math.PI / 2, P2_COLOR, CAR_NAMES[1], 1, p2Type));
+        cars.push(createCar(cx - 120, cy, -Math.PI / 2, P1_COLOR, (typeof playerName !== 'undefined' && playerName) || CAR_NAMES[0], 0, p1Type));
+        cars.push(createCar(cx + 120, cy, -Math.PI / 2, P2_COLOR, (typeof player2Name !== 'undefined' && player2Name) || CAR_NAMES[1], 1, p2Type));
     }
 
     if (currentMap.spawnLayout !== 'grid' || !currentMap.trackWaypoints) {

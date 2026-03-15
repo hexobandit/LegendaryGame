@@ -31,7 +31,11 @@ function initIntro() {
     });
 
     screen.style.display = 'flex';
-    document.getElementById('start-screen').style.display = 'none';
+    // Hide all menu steps when intro plays
+    for (var _s = 2; _s <= 5; _s++) {
+        var _el = document.getElementById('menu-step-' + _s);
+        if (_el) _el.style.display = 'none';
+    }
     introActive = true;
     introExploded = false;
     introFading = false;
@@ -41,6 +45,7 @@ function initIntro() {
     introExpFrame = 0;
 
     cvs.onclick = function(e) {
+        ensureAudio();
         var r = cvs.getBoundingClientRect();
         var mx = (e.clientX - r.left) * (cvs.width / r.width);
         var my = (e.clientY - r.top) * (cvs.height / r.height);

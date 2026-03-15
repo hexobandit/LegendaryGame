@@ -57,6 +57,9 @@ var selectedTeamP2 = 'blue';    // team choice for player 2
 var canvas = null;              // assigned in game.js
 var ctx = null;                 // assigned in game.js
 
+// Fade-in on game start
+var fadeInAlpha = 0;            // 1 = fully black, fades to 0
+
 // FPS tracking
 var fpsFrames = 0;
 var fpsLastTime = 0;

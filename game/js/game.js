@@ -124,6 +124,7 @@ function drawCountdown() {
 var lastTime = 0;
 
 function loop(ts) {
+  try {
     var dt = Math.min((ts - lastTime) / 1000, 0.05);
     lastTime = ts;
 
@@ -163,7 +164,7 @@ function loop(ts) {
         slomoFade = slomoProgress;
         if (slomoProgress >= 1) {
             slomoActive = false;
-            endGame();
+            try { endGame(); } catch(e) { console.error('endGame error:', e); gameState = 'gameover'; }
         }
     }
 
@@ -269,6 +270,14 @@ function loop(ts) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
+    // Fade-in overlay (quick fade from black on game start)
+    if (fadeInAlpha > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,' + fadeInAlpha + ')';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        fadeInAlpha = Math.max(0, fadeInAlpha - dt * 2.5); // ~0.4s fade
+    }
+
+  } catch(e) { console.error('Game loop error:', e); }
     requestAnimationFrame(loop);
 }
 
