@@ -46,6 +46,12 @@ hr { border: none; border-top: 1px solid #1a1a1a; margin: 20px 60px; }
 <div class="mockup-desc">Step 1: Pick Mode. Step 2: Choose Car. Step 3: Select Arena. Progress bar at top, big NEXT/BACK buttons. One decision at a time, very focused.</div>
 <canvas id="e" width="1000" height="750"></canvas>
 
+<div class="mockup-label"><span>LAYOUT F</span> — Racing Game Standard (Forza / NFS / GT Style)</div>
+<div class="mockup-desc">Full-screen garage showroom with the car as hero centerpiece. Radial stat gauges, bottom race-config bar, checkered accents, sleek overlays. Matches modern AAA racing game lobby screens.</div>
+<canvas id="f" width="1000" height="750"></canvas>
+
+<hr>
+
 <script>
 // ═══════════════════════════════════════════════════════
 //  Shared helpers
@@ -668,6 +674,444 @@ function drawKeyHint(ctx, x, y, text) {
     // Or if last step: START
     ctx.fillStyle = '#444'; ctx.font = '11px Arial'; ctx.textAlign = 'center';
     ctx.fillText('Step 3 will show START GAME instead of NEXT', 500, 680);
+})();
+
+// ═══════════════════════════════════════════════════════
+//  LAYOUT F — Racing Game Standard (Forza / NFS / GT)
+//  Full-screen garage, car as hero, radial gauges,
+//  bottom config bar, checkered accents
+// ═══════════════════════════════════════════════════════
+(function() {
+    var c = document.getElementById('f');
+    var ctx = c.getContext('2d');
+    var W = 1000, H = 750;
+
+    // ── Garage background ──
+    // Dark gradient floor + moody top
+    var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#0a0c10');
+    bgGrad.addColorStop(0.45, '#0e1018');
+    bgGrad.addColorStop(0.65, '#12141c');
+    bgGrad.addColorStop(1, '#080a0e');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Floor reflection grid (garage floor)
+    ctx.save();
+    ctx.globalAlpha = 0.04;
+    ctx.strokeStyle = '#6eb4ff';
+    ctx.lineWidth = 1;
+    for (var gy = 380; gy < H; gy += 30) {
+        var spread = (gy - 380) / (H - 380);
+        ctx.globalAlpha = 0.03 * (1 - spread);
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(W, gy);
+        ctx.stroke();
+    }
+    for (var gx = 0; gx < W; gx += 60) {
+        ctx.globalAlpha = 0.02;
+        ctx.beginPath();
+        ctx.moveTo(gx, 380);
+        ctx.lineTo(gx + (gx - W/2) * 0.3, H);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // Spotlight on car (overhead glow)
+    var spotGrad = ctx.createRadialGradient(W/2, 260, 20, W/2, 260, 320);
+    spotGrad.addColorStop(0, 'rgba(110,180,255,.06)');
+    spotGrad.addColorStop(0.5, 'rgba(110,180,255,.02)');
+    spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = spotGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Secondary pink accent light from left
+    var accentGrad = ctx.createRadialGradient(100, 300, 10, 100, 300, 400);
+    accentGrad.addColorStop(0, 'rgba(255,110,180,.04)');
+    accentGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = accentGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Checkered strip along top edge ──
+    var sqSize = 8;
+    for (var ci = 0; ci < Math.ceil(W / sqSize); ci++) {
+        ctx.fillStyle = (ci % 2 === 0) ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.1)';
+        ctx.fillRect(ci * sqSize, 0, sqSize, sqSize);
+    }
+
+    // ── Top bar: branding + mode ──
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    ctx.fillRect(0, sqSize, W, 50);
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    ctx.fillRect(0, sqSize + 50, W, 1);
+
+    // Logo
+    ctx.fillStyle = '#ff6eb4';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LEGENDARY', 24, sqSize + 22);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 12px Arial';
+    ctx.fillText('DESTRUCTION DERBY', 24, sqSize + 40);
+
+    // Mode pills (right of top bar)
+    var modes = ['SINGLE PLAYER', 'SPLIT SCREEN'];
+    for (var i = 0; i < modes.length; i++) {
+        var mx = W - 320 + i * 160;
+        var active = i === 0;
+        roundRect(ctx, mx, sqSize + 12, 145, 30, 15,
+            active ? 'rgba(255,110,180,.15)' : 'rgba(255,255,255,.04)',
+            active ? '#ff6eb4' : 'rgba(255,255,255,.1)');
+        ctx.fillStyle = active ? '#ff6eb4' : '#666';
+        ctx.font = active ? 'bold 11px Arial' : '11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(modes[i], mx + 72, sqSize + 28);
+    }
+
+    // ── Variant selector (horizontal pills below top bar) ──
+    var variants = ['NORMAL','HARDCORE','TIMED','TEAMS','INFECTED','ROBBERY','CTF','RACING'];
+    var vPillW = 95, vGap = 6;
+    var vTotalW = variants.length * vPillW + (variants.length - 1) * vGap;
+    var vStartX = (W - vTotalW) / 2;
+    var vY = sqSize + 65;
+    for (var i = 0; i < variants.length; i++) {
+        var vx = vStartX + i * (vPillW + vGap);
+        var active = i === 0;
+        // Underline style pill
+        ctx.fillStyle = active ? 'rgba(255,110,180,.08)' : 'rgba(0,0,0,0)';
+        roundRect(ctx, vx, vY, vPillW, 28, 4, active ? 'rgba(255,110,180,.08)' : 'transparent');
+        if (active) {
+            ctx.fillStyle = '#ff6eb4';
+            ctx.fillRect(vx + 10, vY + 26, vPillW - 20, 2);
+        }
+        ctx.fillStyle = active ? '#ff6eb4' : '#555';
+        ctx.font = active ? 'bold 10px Arial' : '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(variants[i], vx + vPillW / 2, vY + 15);
+    }
+
+    // ── Hero car in center ──
+    // Shadow under car
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    var shadowGrad = ctx.createRadialGradient(W/2, 360, 10, W/2, 360, 140);
+    shadowGrad.addColorStop(0, 'rgba(0,0,0,.6)');
+    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadowGrad;
+    ctx.beginPath();
+    ctx.ellipse(W/2, 360, 140, 25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Car (big, hero scale)
+    drawCarPreview(ctx, W/2, 300, 7, '#ff6eb4');
+
+    // Car name plate
+    roundRect(ctx, W/2 - 120, 380, 240, 42, 6, 'rgba(0,0,0,.6)', 'rgba(255,255,255,.08)');
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('STOCK CAR', W/2, 400);
+    ctx.fillStyle = '#666';
+    ctx.font = '10px Arial';
+    ctx.fillText('All-rounder. Balanced speed and armor.', W/2, 416);
+
+    // Arrow buttons (glass-style)
+    function drawGlassArrow(x, y, dir) {
+        roundRect(ctx, x, y, 50, 50, 25, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.12)');
+        ctx.fillStyle = '#888';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(dir === 'l' ? '\u25C0' : '\u25B6', x + 25, y + 25);
+    }
+    drawGlassArrow(180, 275, 'l');
+    drawGlassArrow(770, 275, 'r');
+
+    // Car dots (carousel)
+    for (var i = 0; i < 8; i++) {
+        ctx.fillStyle = i === 0 ? '#ff6eb4' : '#333';
+        ctx.beginPath();
+        ctx.arc(W/2 - 42 + i * 12, 440, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // ── Radial stat gauges (left side) ──
+    function drawRadialGauge(cx, cy, radius, val, maxVal, label, color) {
+        var startAngle = 0.75 * Math.PI;
+        var endAngle = 2.25 * Math.PI;
+        var totalArc = endAngle - startAngle;
+        var valAngle = startAngle + totalArc * (val / maxVal);
+
+        // Track
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.strokeStyle = 'rgba(255,255,255,.08)';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Fill
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, startAngle, valAngle);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Value
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.round(val * 10), cx, cy - 2);
+
+        // Label
+        ctx.fillStyle = '#666';
+        ctx.font = '8px Arial';
+        ctx.fillText(label, cx, cy + 14);
+    }
+
+    // Stats panel (left, vertically stacked gauges)
+    roundRect(ctx, 30, 120, 130, 320, 10, 'rgba(0,0,0,.4)', 'rgba(255,255,255,.05)');
+    ctx.fillStyle = '#555';
+    ctx.font = 'bold 9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('PERFORMANCE', 95, 140);
+
+    drawRadialGauge(95, 180, 22, 7, 10, 'SPEED', '#00ccff');
+    drawRadialGauge(95, 240, 22, 6, 10, 'ARMOR', '#44ff44');
+    drawRadialGauge(95, 300, 22, 5, 10, 'POWER', '#ff4444');
+    drawRadialGauge(95, 360, 22, 6, 10, 'GRIP', '#ffcc00');
+    drawRadialGauge(95, 420, 22, 7, 10, 'ACCEL', '#ff6600');
+
+    // ── Color picker (right side) ──
+    roundRect(ctx, 840, 120, 130, 320, 10, 'rgba(0,0,0,.4)', 'rgba(255,255,255,.05)');
+    ctx.fillStyle = '#555';
+    ctx.font = 'bold 9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('LIVERY', 905, 140);
+
+    var colors = ['#ff6eb4','#6eb4ff','#e03030','#30c030','#e0e030','#e07020','#c040c0','#30c0c0','#222','#ff9030','#f0f0f0','#884400'];
+    for (var i = 0; i < colors.length; i++) {
+        var cx2 = 875 + (i % 3) * 28;
+        var cy2 = 170 + Math.floor(i / 3) * 35;
+        ctx.fillStyle = colors[i];
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, 10, 0, Math.PI * 2);
+        ctx.fill();
+        if (colors[i] === '#222') {
+            ctx.strokeStyle = 'rgba(255,255,255,.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(cx2, cy2, 10, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (i === 0) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx2, cy2, 12, 0, Math.PI * 2);
+            ctx.stroke();
+            // Glow
+            ctx.save();
+            ctx.shadowColor = '#ff6eb4';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#ff6eb4';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx2, cy2, 13, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // Custom color hint
+    ctx.fillStyle = '#444';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('+ CUSTOM', 905, cy2 + 35);
+
+    // ── Bottom race config bar ──
+    roundRect(ctx, 0, H - 170, W, 170, 0, 'rgba(0,0,0,.7)');
+    ctx.fillStyle = 'rgba(255,255,255,.04)';
+    ctx.fillRect(0, H - 170, W, 1);
+
+    // Checkered strip along bottom bar top
+    for (var ci = 0; ci < Math.ceil(W / sqSize); ci++) {
+        ctx.fillStyle = (ci % 2 === 0) ? 'rgba(255,110,180,.08)' : 'rgba(0,0,0,0)';
+        ctx.fillRect(ci * sqSize, H - 170, sqSize, sqSize / 2);
+    }
+
+    // Track selection (mini cards in bottom bar)
+    ctx.fillStyle = '#666';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('SELECT TRACK', 30, H - 148);
+
+    var tracks = [
+        {name:'CLASSIC', bg:'#4a6e2a', desc:'Grass & roads'},
+        {name:'DESERT', bg:'#c2a55a', desc:'Sand & lagoon'},
+        {name:'FROZEN', bg:'#8ab8d0', desc:'Ice & snow'},
+        {name:'PARKING', bg:'#383838', desc:'Tight chaos'},
+        {name:'SPEEDWAY', bg:'#5a7e3a', desc:'Oval track'}
+    ];
+    for (var i = 0; i < tracks.length; i++) {
+        var tx = 30 + i * 118;
+        var ty = H - 132;
+        var tw = 110, th = 60;
+        var active = i === 0;
+
+        // Track card
+        roundRect(ctx, tx, ty, tw, th, 6, tracks[i].bg);
+        // Overlay for text readability
+        ctx.fillStyle = 'rgba(0,0,0,.4)';
+        ctx.fillRect(tx, ty + th - 22, tw, 22);
+        roundRect(ctx, tx, ty + th - 22, tw, 22, [0,0,6,6], 'rgba(0,0,0,.4)');
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(tracks[i].name, tx + tw/2, ty + th - 9);
+
+        if (active) {
+            ctx.strokeStyle = '#ff6eb4';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(tx, ty, tw, th, 6);
+            ctx.stroke();
+            // Glow
+            ctx.save();
+            ctx.shadowColor = '#ff6eb4';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#ff6eb4';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(tx - 1, ty - 1, tw + 2, th + 2, 7);
+            ctx.stroke();
+            ctx.restore();
+        } else {
+            ctx.strokeStyle = 'rgba(255,255,255,.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(tx, ty, tw, th, 6);
+            ctx.stroke();
+        }
+    }
+
+    // Race info badges (bottom bar right side)
+    var infoX = 640;
+    var infoY = H - 148;
+
+    // Laps badge
+    roundRect(ctx, infoX, infoY, 80, 50, 6, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.08)');
+    ctx.fillStyle = '#555';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('LAPS', infoX + 40, infoY + 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Courier New';
+    ctx.fillText('3', infoX + 40, infoY + 38);
+
+    // AI count badge
+    roundRect(ctx, infoX + 90, infoY, 80, 50, 6, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.08)');
+    ctx.fillStyle = '#555';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('OPPONENTS', infoX + 130, infoY + 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Courier New';
+    ctx.fillText('11', infoX + 130, infoY + 38);
+
+    // Respawns badge
+    roundRect(ctx, infoX + 180, infoY, 80, 50, 6, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.08)');
+    ctx.fillStyle = '#555';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('RESPAWN', infoX + 220, infoY + 14);
+    ctx.fillStyle = '#4f4';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('ON', infoX + 220, infoY + 38);
+
+    // ── BIG RACE BUTTON (gradient, glowing) ──
+    var btnX = W - 220, btnY = H - 145, btnW = 190, btnH = 58;
+    // Glow
+    ctx.save();
+    ctx.shadowColor = '#ff6eb4';
+    ctx.shadowBlur = 25;
+    var btnGrad = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
+    btnGrad.addColorStop(0, '#ff6eb4');
+    btnGrad.addColorStop(1, '#ff3890');
+    ctx.fillStyle = btnGrad;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 10);
+    ctx.fill();
+    ctx.restore();
+
+    // Checkered inset on button
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 10);
+    ctx.clip();
+    ctx.globalAlpha = 0.08;
+    for (var bci = 0; bci < Math.ceil(btnW / 12); bci++) {
+        for (var bcj = 0; bcj < Math.ceil(btnH / 12); bcj++) {
+            if ((bci + bcj) % 2 === 0) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(btnX + bci * 12, btnY + bcj * 12, 12, 12);
+            }
+        }
+    }
+    ctx.restore();
+
+    // Button text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('RACE', btnX + btnW / 2, btnY + btnH / 2 - 2);
+
+    // Subtitle under button
+    ctx.fillStyle = 'rgba(255,255,255,.4)';
+    ctx.font = '9px Arial';
+    ctx.fillText('PRESS ENTER', btnX + btnW / 2, btnY + btnH + 12);
+
+    // ── Controls overlay (bottom right corner) ──
+    var ctrlY = H - 60;
+    ctx.fillStyle = '#333';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('A/D Steer    W Nitro    S Brake    SPACE Drift    R Reset    ESC Pause', W / 2, ctrlY);
+
+    // ── Speed lines (decorative, sides) ──
+    ctx.save();
+    ctx.globalAlpha = 0.03;
+    ctx.strokeStyle = '#ff6eb4';
+    ctx.lineWidth = 1;
+    for (var sl = 0; sl < 8; sl++) {
+        var slx = 15 + sl * 3;
+        ctx.beginPath();
+        ctx.moveTo(slx, 150 + sl * 10);
+        ctx.lineTo(slx, 450 - sl * 10);
+        ctx.stroke();
+    }
+    for (var sl = 0; sl < 8; sl++) {
+        var slx = W - 15 - sl * 3;
+        ctx.beginPath();
+        ctx.moveTo(slx, 150 + sl * 10);
+        ctx.lineTo(slx, 450 - sl * 10);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── Fullscreen / settings buttons (top right) ──
+    drawGlassArrow(W - 50, sqSize + 14, 'r'); // repurpose as settings icon
+    ctx.fillStyle = '#555';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2699', W - 25, sqSize + 38);
+
 })();
 </script>
 </body>

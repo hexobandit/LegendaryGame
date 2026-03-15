@@ -243,8 +243,8 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.fillText('INFECTED — HUNT THEM!', vx + vw / 2, vy + pad + 72);
         }
 
-        // ── Death overlay ──
-        if (!car.alive) {
+        // ── Death overlay (hide during slow-mo fade and gameover) ──
+        if (!car.alive && !slomoActive && gameState !== 'gameover') {
             ctx.fillStyle = 'rgba(0,0,0,.6)';
             ctx.fillRect(vx, vy, vw, vh);
             ctx.shadowColor = '#f44'; ctx.shadowBlur = 20;
@@ -442,8 +442,8 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.shadowBlur = 0;
         }
 
-        // ── Death overlay ──
-        if (!car.alive) {
+        // ── Death overlay (hide during slow-mo fade and gameover) ──
+        if (!car.alive && !slomoActive && gameState !== 'gameover') {
             ctx.fillStyle = 'rgba(0,0,0,.6)';
             ctx.fillRect(vx, vy, vw, vh);
             ctx.shadowColor = '#f44'; ctx.shadowBlur = 16;

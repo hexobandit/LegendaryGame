@@ -247,6 +247,10 @@ function drawCarPreview(pctx, ct, color, scale) {
     var cornerRadius = (bodyStyle === 'compact' || bodyStyle === 'miata') ? 8 : bodyStyle === 'schoolbus' ? 3 : 4;
     pctx.fillStyle = color;
     pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, cornerRadius); pctx.fill();
+    // Outline so dark cars are visible on the dark preview background
+    pctx.strokeStyle = 'rgba(255,255,255,.25)';
+    pctx.lineWidth = 0.8;
+    pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, cornerRadius); pctx.stroke();
 
     // Windshield
     pctx.fillStyle = 'rgba(100,180,255,.55)';
@@ -529,7 +533,7 @@ function drawCarPreview(pctx, ct, color, scale) {
         pctx.fillStyle = '#1a1a2e';
         pctx.save();
         pctx.beginPath(); pctx.roundRect(-cw/2, -ch/2, cw, ch, 4); pctx.clip();
-        pctx.fillRect(6, -2.5, cw/2 - 6, 5);
+        pctx.fillRect(6, -4.5, cw/2 - 6, 9);
         pctx.restore();
         // Police star on hood
         pctx.save();

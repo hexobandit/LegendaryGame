@@ -887,7 +887,7 @@ function drawCar(car) {
         ctx.fillStyle = '#1a1a2e';
         ctx.save();
         ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 4); ctx.clip();
-        ctx.fillRect(6, -2.5, cw/2 - 6, 5);
+        ctx.fillRect(6, -4.5, cw/2 - 6, 9);
         ctx.restore();
         // Police star on hood
         ctx.save();

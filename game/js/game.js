@@ -198,9 +198,11 @@ function loop(ts) {
             }
         }
 
-        // Check win condition (skip if slomo is handling the transition)
+        // Check win condition — trigger slow-mo fade instead of instant endGame
         if (!slomoActive && activeMode && activeMode.checkWin && activeMode.checkWin()) {
-            endGame();
+            slomoActive = true;
+            slomoTimer = 0;
+            slomoFade = 0;
         }
 
         updateFX();
