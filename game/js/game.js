@@ -184,12 +184,13 @@ function loop(ts) {
         checkCollisions();
         updatePowerUps();
         updateBreakables();
+        updateScoring(dt);
 
-        // Respawn timer — only if mode allows respawns
+        // Respawn timer — players and AI (if mode allows respawns)
         var allowRespawn = !activeMode || activeMode.respawn !== false;
         for (var i = 0; i < cars.length; i++) {
             var c = cars[i];
-            if (!c.alive && c.playerIdx >= 0 && allowRespawn && c.respawnTimer > 0) {
+            if (!c.alive && allowRespawn && c.respawnTimer > 0) {
                 c.respawnTimer--;
                 if (c.respawnTimer <= 0) {
                     respawnCar(c);

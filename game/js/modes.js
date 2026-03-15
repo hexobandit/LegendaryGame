@@ -606,7 +606,7 @@ registerMode('robbery-single', {
     id: 'robbery-single',
     label: 'ROBBERY',
     description: 'Escape cops for 3min.',
-    playerCount: 1, aiCount: 2,
+    playerCount: 1, aiCount: 1,
     respawn: false, teams: false, timeLimit: ROBBERY_DURATION,
     isCops: true,
 

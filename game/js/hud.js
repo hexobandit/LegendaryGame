@@ -3,6 +3,60 @@
 //  Score, HP, Speed, Nitro, Minimap — styled to match the game
 // ================================================================
 
+// ── Off-screen indicator arrows ──
+function drawOffscreenArrow(targetX, targetY, vx, vy, vw, vh, color, label) {
+    // Calculate if target is off-screen
+    var margin = 40;
+    if (targetX >= vx + margin && targetX <= vx + vw - margin &&
+        targetY >= vy + margin && targetY <= vy + vh - margin) return;
+
+    var cx = vx + vw / 2, cy = vy + vh / 2;
+    var angle = Math.atan2(targetY - cy, targetX - cx);
+
+    // Find edge intersection
+    var edgeX, edgeY;
+    var dx = Math.cos(angle), dy = Math.sin(angle);
+    var hw = vw / 2 - 30, hh = vh / 2 - 30;
+    var tx = Math.abs(dx) > 0.001 ? hw / Math.abs(dx) : Infinity;
+    var ty = Math.abs(dy) > 0.001 ? hh / Math.abs(dy) : Infinity;
+    var t = Math.min(tx, ty);
+    edgeX = cx + dx * t;
+    edgeY = cy + dy * t;
+
+    // Clamp to viewport
+    edgeX = Math.max(vx + 25, Math.min(vx + vw - 25, edgeX));
+    edgeY = Math.max(vy + 25, Math.min(vy + vh - 25, edgeY));
+
+    // Draw arrow triangle
+    ctx.save();
+    ctx.translate(edgeX, edgeY);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.8 + Math.sin(performance.now() * 0.006) * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-6, -8);
+    ctx.lineTo(-6, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-6, -8);
+    ctx.lineTo(-6, 8);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Label
+    if (label) {
+        ctx.rotate(-angle);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(label, 0, -12);
+    }
+    ctx.restore();
+}
+
 // ── Helpers ──
 function hudRoundRect(x, y, w, h, r) {
     ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
@@ -78,6 +132,25 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.shadowBlur = 0;
             ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Courier New';
             ctx.fillText(score, sx + sw / 2, sy + 34);
+        }
+
+        // ── Combo multiplier badge (below score) ──
+        if (scoreComboCount > 0 && !(activeMode && activeMode.isRacing)) {
+            var cbw = 120, cbh = 28;
+            var cbx = vx + vw / 2 - cbw / 2, cby = sy + sh + 4;
+            var comboAlpha = Math.min(1, 0.4 + scoreComboCount * 0.1);
+            ctx.globalAlpha = comboAlpha;
+            hudPanel(cbx, cby, cbw, cbh, '#f80');
+            // Decay bar
+            var decayPct = scoreComboTimer / 3;
+            if (decayPct > 0) {
+                hudBar(cbx + 4, cby + cbh - 6, cbw - 8, 3, decayPct, '#f80', '#ff4', 'rgba(0,0,0,.3)');
+            }
+            ctx.fillStyle = '#ff4'; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'center';
+            var comboLabel = scoreMultiplier.toFixed(1) + 'x';
+            if (scoreComboCount >= 3) comboLabel += ' COMBO';
+            ctx.fillText(comboLabel, cbx + cbw / 2, cby + 16);
+            ctx.globalAlpha = 1;
         }
 
         // ── Top-right: Stats or Race Leaderboard ──
@@ -215,32 +288,44 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.shadowBlur = 0;
         }
 
-        // ── CTF banner ──
+        // ── CTF banner (only when carrying) ──
         if (car.alive && ctfFlag && activeMode && activeMode.isCTF) {
             var isCarrier = ctfFlag.carrier === car;
-            var holdSec = isCarrier ? Math.floor(ctfHoldTimer) : 0;
-            var bannerText = isCarrier ? 'FLAG HOLDER — ' + holdSec + 's' : 'GET THE FLAG!';
-            var bannerCol = isCarrier ? '#ffaa00' : '#aaa';
-            var pulse2 = isCarrier ? (0.5 + Math.sin(performance.now() * 0.008) * 0.2) : 0;
             if (isCarrier) {
+                var holdSec = Math.floor(ctfHoldTimer);
+                var pulse2 = 0.5 + Math.sin(performance.now() * 0.008) * 0.2;
                 ctx.fillStyle = 'rgba(255,170,0,' + pulse2 + ')';
                 ctx.fillRect(vx, vy, vw, 3);
                 ctx.fillRect(vx, vy + vh - 3, vw, 3);
+                hudPanel(vx + vw / 2 - 80, vy + pad + 56, 160, 22, '#ffaa00');
+                ctx.fillStyle = '#ffaa00'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('FLAG HOLDER — ' + holdSec + 's', vx + vw / 2, vy + pad + 72);
             }
-            hudPanel(vx + vw / 2 - 80, vy + pad + 56, 160, 22, bannerCol);
-            ctx.fillStyle = bannerCol; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
-            ctx.fillText(bannerText, vx + vw / 2, vy + pad + 72);
         }
 
-        // ── Infected banner (alive but turned) ──
-        if (car.alive && car.infected) {
-            var pulse = 0.4 + Math.sin(performance.now() * 0.006) * 0.15;
-            ctx.fillStyle = 'rgba(30,200,30,' + pulse + ')';
-            ctx.fillRect(vx, vy, vw, 3);
-            ctx.fillRect(vx, vy + vh - 3, vw, 3);
-            hudPanel(vx + vw / 2 - 70, vy + pad + 56, 140, 22, '#3f3');
-            ctx.fillStyle = '#3f3'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
-            ctx.fillText('INFECTED — HUNT THEM!', vx + vw / 2, vy + pad + 72);
+        // ── Off-screen arrows (CTF flag, multiplayer other player) ──
+        if (car.alive) {
+            var camOffX = car.x - vw / 2;
+            var camOffY = car.y - vh / 2;
+            // CTF flag/carrier arrow
+            if (ctfFlag && activeMode && activeMode.isCTF) {
+                var flagTarget = ctfFlag.carrier || ctfFlag;
+                if (flagTarget !== car) {
+                    var flagScreenX = vx + flagTarget.x - camOffX;
+                    var flagScreenY = vy + flagTarget.y - camOffY;
+                    drawOffscreenArrow(flagScreenX, flagScreenY, vx, vy, vw, vh, '#ffaa00', 'FLAG');
+                }
+            }
+            // Multiplayer: arrow to other player
+            if (gameMode === 'multi') {
+                var otherIdx = car.playerIdx === 0 ? 1 : 0;
+                var other = cars[otherIdx];
+                if (other && other.alive) {
+                    var otherScreenX = vx + other.x - camOffX;
+                    var otherScreenY = vy + other.y - camOffY;
+                    drawOffscreenArrow(otherScreenX, otherScreenY, vx, vy, vw, vh, other.color, other.name);
+                }
+            }
         }
 
         // ── Death overlay (hide during slow-mo fade and gameover) ──
@@ -440,6 +525,29 @@ function drawHUD(car, vx, vy, vw, vh) {
             ctx.fillStyle = puCol; ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
             ctx.fillText(puLabel + ' ' + puTime + 's', vx + vw / 2, hby - 14);
             ctx.shadowBlur = 0;
+        }
+
+        // ── Off-screen arrows (CTF flag, other player) ──
+        if (car.alive) {
+            var camOffX2 = car.x - vw / 2;
+            var camOffY2 = car.y - vh / 2;
+            // CTF flag/carrier arrow
+            if (ctfFlag && activeMode && activeMode.isCTF) {
+                var flagTarget2 = ctfFlag.carrier || ctfFlag;
+                if (flagTarget2 !== car) {
+                    var flagScreenX2 = vx + flagTarget2.x - camOffX2;
+                    var flagScreenY2 = vy + flagTarget2.y - camOffY2;
+                    drawOffscreenArrow(flagScreenX2, flagScreenY2, vx, vy, vw, vh, '#ffaa00', 'FLAG');
+                }
+            }
+            // Arrow to other player
+            var otherIdx2 = car.playerIdx === 0 ? 1 : 0;
+            var other2 = cars[otherIdx2];
+            if (other2 && other2.alive) {
+                var otherScreenX2 = vx + other2.x - camOffX2;
+                var otherScreenY2 = vy + other2.y - camOffY2;
+                drawOffscreenArrow(otherScreenX2, otherScreenY2, vx, vy, vw, vh, other2.color, other2.name);
+            }
         }
 
         // ── Death overlay (hide during slow-mo fade and gameover) ──

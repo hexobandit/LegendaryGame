@@ -791,6 +791,7 @@ function startGame() {
     slomoActive = false; slomoTimer = 0; slomoFade = 0;
     ctfFlag = null; ctfScores = {}; ctfHoldTimer = 0; ctfBonusTimer = 0;
     raceData = null;
+    resetScoring();
     generateTerrain();
     spawnCars();
 }

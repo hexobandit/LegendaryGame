@@ -199,14 +199,9 @@ function moveCar(car) {
                 ));
             }
             playSfxThrottled('bump', 100);
-            // Landing floating text
+            // Landing scoring + floating text
             if (car.playerIdx >= 0) {
-                floatingTexts.push({
-                    x: car.x, y: car.y - 35,
-                    text: 'LANDED!',
-                    color: '#fff', alpha: 1, vy: -0.6, life: 60,
-                    bubble: true, bubbleColor: '#ff4'
-                });
+                scoreAirtimeLand(car, car.jumpDuration);
             }
         }
         car.speed = Math.hypot(car.vx, car.vy);
@@ -437,14 +432,9 @@ function moveCar(car) {
                     ));
                 }
                 playSfxThrottled('nitro', 200);
-                // Floating text
+                // Airtime launch scoring
                 if (car.playerIdx >= 0) {
-                    floatingTexts.push({
-                        x: car.x, y: car.y - 30,
-                        text: 'AIR!',
-                        color: '#fff', alpha: 1, vy: -0.8, life: 50,
-                        bubble: true, bubbleColor: '#ff4'
-                    });
+                    scoreAirtimeLaunch(car);
                 }
                 break;
             }
@@ -483,6 +473,10 @@ function checkCollisions() {
             // Team friendly fire check
             if (activeMode && activeMode.friendlyFire === false && a.team && b.team && a.team === b.team) continue;
             let dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
+            // Near-miss detection (close but not touching)
+            if (dist >= 35 && dist < 50) {
+                checkNearMiss(i, j);
+            }
             if (dist < 35 && dist > 0) {
                 // Infection spreads on contact
                 if (a.infected !== b.infected && activeMode && activeMode.id.indexOf('infected') >= 0) {
@@ -537,6 +531,10 @@ function checkCollisions() {
                     if (impact > 5) { if (dA > dB) a.spinTimer = 15; else b.spinTimer = 15; }
 
                     let cx = (a.x+b.x)/2, cy = (a.y+b.y)/2;
+
+                    // Score hits (after cx/cy are defined)
+                    if (a.playerIdx >= 0) scoreHit(a, dB, cx, cy);
+                    if (b.playerIdx >= 0) scoreHit(b, dA, cx, cy);
                     spawnSparks(cx, cy, impact*2|0);
                     spawnSmoke(cx, cy, impact|0);
 
@@ -771,19 +769,12 @@ function checkDeath(car) {
 
         if (car.lastHitBy) {
             car.lastHitBy.kills++;
-            if (gameMode === 'single' && car.lastHitBy.playerIdx === 0) {
-                // Single player: award score for kills
-                score += 500;
-                playSfx('kill');
-                floatingTexts.push({
-                    x: car.x, y: car.y - 30,
-                    text: `+500 DESTROYED ${car.name}!`,
-                    color: '#fff', alpha: 1, vy: -0.5, life: 120,
-                    bubble: true, bubbleColor: car.lastHitBy.color
-                });
-            } else if (gameMode === 'multi' && car.lastHitBy.playerIdx >= 0) {
-                // Multiplayer: kill notification
-                playSfx('kill');
+            if (car.lastHitBy.playerIdx >= 0) {
+                // Player kill — use scoring system
+                scoreKill(car.lastHitBy, car);
+            }
+            if (gameMode === 'multi' && car.lastHitBy.playerIdx >= 0) {
+                // Multiplayer: kill notification bubble
                 floatingTexts.push({
                     x: car.x, y: car.y - 30,
                     text: `\u{1F4A5} ${car.lastHitBy.name} destroyed ${car.name}!`,
@@ -818,19 +809,22 @@ function checkDeath(car) {
             });
         }
 
-        // Players auto-respawn after 5 seconds (if mode allows)
+        // Respawn logic (if mode allows)
+        var allowRespawn = !activeMode || activeMode.respawn !== false;
         if (car.playerIdx >= 0) {
             car.deaths = (car.deaths || 0) + 1;
-            var allowRespawn = !activeMode || activeMode.respawn !== false;
             if (!allowRespawn && !slomoActive) {
                 // No-respawn mode: trigger epic explosion + slow-mo death
                 spawnEpicExplosion(car.x, car.y, car.color);
                 slomoActive = true;
                 slomoTimer = 0;
                 slomoFade = 0;
-            } else {
+            } else if (allowRespawn) {
                 car.respawnTimer = 300; // 5 seconds at 60fps
             }
+        } else if (allowRespawn) {
+            // AI respawn in modes that allow it (CTF, timed, etc.)
+            car.respawnTimer = 300;
         }
     }
 }

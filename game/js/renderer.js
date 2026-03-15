@@ -8,7 +8,26 @@ function drawTerrain() {
     ctx.fillStyle = (typeof currentMap !== 'undefined' && currentMap.backgroundColor) ? currentMap.backgroundColor : '#4a6e2a';
     let arenaW = (typeof currentMap !== 'undefined' && currentMap.arenaWidth) ? currentMap.arenaWidth : ARENA_W;
     let arenaH = (typeof currentMap !== 'undefined' && currentMap.arenaHeight) ? currentMap.arenaHeight : ARENA_H;
-    ctx.fillRect(0, 0, arenaW, arenaH);
+    let edgeExt = 600; // terrain extends beyond arena
+    ctx.fillRect(-edgeExt, -edgeExt, arenaW + edgeExt * 2, arenaH + edgeExt * 2);
+
+    // Darken area beyond arena boundary
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(-edgeExt, -edgeExt, arenaW + edgeExt * 2, edgeExt); // top
+    ctx.fillRect(-edgeExt, arenaH, arenaW + edgeExt * 2, edgeExt); // bottom
+    ctx.fillRect(-edgeExt, 0, edgeExt, arenaH); // left
+    ctx.fillRect(arenaW, 0, edgeExt, arenaH); // right
+
+    // Subtle boundary line (tire-wall style dashed border)
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([12, 8]);
+    ctx.strokeRect(0, 0, arenaW, arenaH);
+    ctx.setLineDash([]);
+    // Inner glow line
+    ctx.strokeStyle = 'rgba(255,100,100,0.12)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, arenaW - 4, arenaH - 4);
 
     for (let p of grassPatches){ctx.fillStyle=`rgba(60,100,30,${.05+p.shade})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
     for (let p of dirtPatches){ctx.fillStyle=`rgba(120,100,60,${.3+p.shade})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
@@ -1032,9 +1051,17 @@ function drawCar(car) {
     // Infected glow
     if (car.infected) {
         ctx.save();
-        ctx.globalAlpha = 0.25 + Math.sin(performance.now() * 0.008) * 0.15;
+        ctx.globalAlpha = 0.4 + Math.sin(performance.now() * 0.008) * 0.2;
         ctx.fillStyle = '#33ff33';
-        ctx.beginPath(); ctx.arc(car.x, car.y, 28, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(car.x, car.y, 32, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+    // CTF flag carrier glow
+    if (ctfFlag && ctfFlag.carrier === car) {
+        ctx.save();
+        ctx.globalAlpha = 0.4 + Math.sin(performance.now() * 0.006) * 0.2;
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath(); ctx.arc(car.x, car.y, 32, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 

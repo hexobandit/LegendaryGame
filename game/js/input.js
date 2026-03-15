@@ -35,3 +35,23 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// When browser exits fullscreen (Escape in fullscreen bypasses keydown),
+// pause the game and try to lock Escape key if supported.
+document.addEventListener('fullscreenchange', function() {
+    if (!document.fullscreenElement && gameState === 'playing') {
+        // Browser exited fullscreen via Escape — pause and re-enter fullscreen
+        togglePause();
+        document.documentElement.requestFullscreen().catch(function(){});
+    }
+});
+
+// Try to lock Escape key in fullscreen so it goes to pause instead of exiting
+function lockEscapeKey() {
+    if (navigator.keyboard && navigator.keyboard.lock) {
+        navigator.keyboard.lock(['Escape']).catch(function(){});
+    }
+}
+document.addEventListener('fullscreenchange', function() {
+    if (document.fullscreenElement) lockEscapeKey();
+});
