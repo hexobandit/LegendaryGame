@@ -89,13 +89,54 @@ function spawnCars() {
     var numPlayers = (activeMode && activeMode.playerCount) || (gameMode === 'single' ? 1 : 2);
     var numAI = (activeMode && activeMode.aiCount != null) ? activeMode.aiCount : (gameMode === 'single' ? 11 : 10);
 
-    if (numPlayers === 1) {
+    // Grid spawn for racing tracks
+    if (currentMap.spawnLayout === 'grid' && currentMap.trackWaypoints && currentMap.trackWaypoints.length >= 2) {
+        var wps = currentMap.trackWaypoints;
+        // Start facing from waypoint 0 toward waypoint 1
+        var dirX = wps[1].x - wps[0].x;
+        var dirY = wps[1].y - wps[0].y;
+        var dirLen = Math.hypot(dirX, dirY);
+        var fwdX = dirX / dirLen, fwdY = dirY / dirLen;
+        var latX = -fwdY, latY = fwdX; // perpendicular (left)
+        var faceAngle = Math.atan2(dirY, dirX);
+        var startX = wps[0].x, startY = wps[0].y;
+
+        var totalCars = numPlayers + numAI;
+        var allSlots = [];
+        for (var gi = 0; gi < totalCars; gi++) {
+            var row = Math.floor(gi / 2);
+            var col = gi % 2;
+            var gx = startX - fwdX * (row + 1) * 55 + latX * (col === 0 ? -28 : 28);
+            var gy = startY - fwdY * (row + 1) * 55 + latY * (col === 0 ? -28 : 28);
+            allSlots.push({ x: gx, y: gy });
+        }
+
+        // Players get front slots
+        if (numPlayers === 1) {
+            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, 'PLAYER', 0, p1Type));
+        } else {
+            cars.push(createCar(allSlots[0].x, allSlots[0].y, faceAngle, P1_COLOR, CAR_NAMES[0], 0, p1Type));
+            cars.push(createCar(allSlots[1].x, allSlots[1].y, faceAngle, P2_COLOR, CAR_NAMES[1], 1, p2Type));
+        }
+        for (var i = 0; i < numAI; i++) {
+            var slot = allSlots[numPlayers + i];
+            var aiType = (typeof CAR_TYPES !== 'undefined' && CAR_TYPES.length > 0)
+                ? CAR_TYPES[Math.random() * CAR_TYPES.length | 0] : null;
+            cars.push(createCar(
+                slot.x, slot.y, faceAngle,
+                CAR_COLORS[(i + 2) % CAR_COLORS.length],
+                CAR_NAMES[(i + 2) % CAR_NAMES.length],
+                -1, aiType
+            ));
+        }
+    } else if (numPlayers === 1) {
         cars.push(createCar(cx, cy, -Math.PI / 2, P1_COLOR, 'PLAYER', 0, p1Type));
     } else {
         cars.push(createCar(cx - 120, cy, -Math.PI / 2, P1_COLOR, CAR_NAMES[0], 0, p1Type));
         cars.push(createCar(cx + 120, cy, -Math.PI / 2, P2_COLOR, CAR_NAMES[1], 1, p2Type));
     }
 
+    if (currentMap.spawnLayout !== 'grid' || !currentMap.trackWaypoints) {
     for (var i = 0; i < numAI; i++) {
         var ang = (i / numAI) * Math.PI * 2;
         var dist = sr + Math.random() * (sr * (numPlayers === 1 ? 1.1 : 0.85));
@@ -109,6 +150,7 @@ function spawnCars() {
             CAR_NAMES[(i + 2) % CAR_NAMES.length],
             -1, aiType
         ));
+    }
     }
 
     // Mode-specific post-spawn setup (teams, infected, etc.)

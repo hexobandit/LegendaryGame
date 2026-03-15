@@ -18,6 +18,125 @@ function updateAI(car, dt) {
     var robberyMode = activeMode && activeMode.isCops;
     // CTF mode: chase flag carrier or go to flag
     var ctfMode = activeMode && activeMode.isCTF;
+    // Racing mode: follow waypoints
+    var racingMode = activeMode && activeMode.isRacing;
+
+    // ── Racing AI — waypoint following, bypasses normal state machine ──
+    if (racingMode && raceData && currentMap.trackWaypoints) {
+        var wps = currentMap.trackWaypoints;
+        var ci = cars.indexOf(car);
+        var currentCP = (ci >= 0 && raceData.checkpoints[ci] != null) ? raceData.checkpoints[ci] : 0;
+        var n = wps.length;
+
+        // Look 3 waypoints ahead for smooth cornering
+        var lookAhead = (currentCP + 3) % n;
+        var target = wps[lookAhead];
+        var rTargetAng = Math.atan2(target.y - car.y, target.x - car.x);
+
+        // Steering
+        var rDiff = rTargetAng - car.angle;
+        while (rDiff > Math.PI) rDiff -= Math.PI * 2;
+        while (rDiff < -Math.PI) rDiff += Math.PI * 2;
+        if (rDiff > 0.05) car.angle += CONFIG.turnSpeed * (car.carType?.turnMult || 1) * 0.85;
+        else if (rDiff < -0.05) car.angle -= CONFIG.turnSpeed * (car.carType?.turnMult || 1) * 0.85;
+
+        // Corner braking — check angle change 2 waypoints ahead
+        var wp2 = (currentCP + 2) % n;
+        var wp4 = (currentCP + 4) % n;
+        var angA = Math.atan2(wps[wp4].y - wps[wp2].y, wps[wp4].x - wps[wp2].x);
+        var angB = Math.atan2(wps[wp2].y - wps[currentCP].y, wps[wp2].x - wps[currentCP].x);
+        var cornerDiff = angA - angB;
+        while (cornerDiff > Math.PI) cornerDiff -= Math.PI * 2;
+        while (cornerDiff < -Math.PI) cornerDiff += Math.PI * 2;
+        if (Math.abs(cornerDiff) > 0.4 && spd > 3) {
+            car.vx *= 0.96;
+            car.vy *= 0.96;
+        }
+
+        // Track AI turning for skid marks
+        var aiAngleDelta2 = car.angle - car.prevAngle;
+        while (aiAngleDelta2 > Math.PI) aiAngleDelta2 -= Math.PI * 2;
+        while (aiAngleDelta2 < -Math.PI) aiAngleDelta2 += Math.PI * 2;
+        if (Math.abs(aiAngleDelta2) > 0.01) car.turnTimer++;
+        else car.turnTimer = Math.max(0, car.turnTimer - 2);
+        car.prevAngle = car.angle;
+
+        // Nitro on straight sections
+        if (Math.abs(cornerDiff) < 0.25 && car.nitro >= CONFIG.nitroMax && car.nitroCooldown <= 0 && !car.nitroActive) {
+            car.nitroActive = true;
+            car.nitroBurnTimer = CONFIG.nitroBurnFrames + (car.carType?.nitroBonus || 0);
+        }
+
+        // AI nitro burn timer
+        if (car.nitroActive) {
+            car.nitroBurnTimer--;
+            if (car.nitroBurnTimer <= 0) {
+                car.nitroActive = false;
+                car.nitroCooldown = CONFIG.nitroCooldown;
+                car.nitro = 0;
+            }
+        }
+        if (car.nitroCooldown > 0) {
+            car.nitroCooldown--;
+            if (car.nitroCooldown <= 0) car.nitro = CONFIG.nitroMax;
+        }
+
+        let rUseNitro = car.nitroActive;
+        let rSpeedMult = car.activePowerUp === 'speed' ? 1.35 : 1;
+        let rDmgMult = getDamageMultiplier(car);
+        let rAccel = (rUseNitro ? CONFIG.nitroAccel : CONFIG.autoAccel * (car.carType?.accelMult || 1) * 0.85) * rSpeedMult * rDmgMult;
+        let rCap = (rUseNitro ? CONFIG.nitroMaxSpeed : CONFIG.maxSpeed * (car.carType?.maxSpeedMult || 1) * 0.85) * rSpeedMult * rDmgMult;
+
+        // Damage wobble
+        let rHp = car.health / car.maxHealth;
+        if (rHp < 0.4) {
+            let wobbleIntensity = CONFIG.dmgWobble * (1 - rHp / 0.4);
+            car.angle += Math.sin(performance.now() * 0.008 + car.x) * wobbleIntensity;
+        }
+
+        car.vx += Math.cos(car.angle) * rAccel;
+        car.vy += Math.sin(car.angle) * rAccel;
+
+        // Nitro effects
+        if (rUseNitro) {
+            if (car.nitroSfxCooldown <= 0) {
+                playSfxThrottled('nitro', 300);
+                car.nitroSfxCooldown = 18;
+            }
+            let nCount = Math.random() < 0.5 ? 1 : 2;
+            for (let i = 0; i < nCount; i++) {
+                particles.push(mkParticle(
+                    car.x - Math.cos(car.angle) * 22,
+                    car.y - Math.sin(car.angle) * 22,
+                    -Math.cos(car.angle)*2 + (Math.random()-.5)*1,
+                    -Math.sin(car.angle)*2 + (Math.random()-.5)*1,
+                    ['#ff4400','#ff8800','#ffcc00'][Math.random()*3|0],
+                    4 + Math.random()*5, 0.06
+                ));
+            }
+        }
+        if (car.nitroSfxCooldown > 0) car.nitroSfxCooldown--;
+
+        // Friction + speed cap
+        applyFriction(car, false);
+        spd = Math.hypot(car.vx, car.vy);
+        if (spd > rCap) {
+            var newSpd = spd * 0.97;
+            if (newSpd < rCap) newSpd = rCap;
+            car.vx = car.vx / spd * newSpd;
+            car.vy = car.vy / spd * newSpd;
+        }
+        car.speed = spd;
+
+        // Skid marks
+        if (car.turnTimer > 8 && spd > 2.5) {
+            addSkid(car);
+        } else if (Math.abs(rDiff) > 0.8 && spd > 3) {
+            addSkid(car);
+        }
+
+        return; // Skip normal AI
+    }
 
     if (car.aiTimer <= 0) {
         car.aiTimer = 1 + Math.random() * 2;

@@ -21,8 +21,8 @@ function buildTeamPicker(container, playerNum) {
         if (sel === team) btn.style.background = TEAM_COLORS[team] + '33';
         btn.textContent = team === 'red' ? 'RED' : 'BLUE';
         btn.onclick = function() {
-            if (playerNum === 1) selectedTeamP1 = team;
-            else selectedTeamP2 = team;
+            if (playerNum === 1) { selectedTeamP1 = team; P1_COLOR = TEAM_COLORS[team]; }
+            else { selectedTeamP2 = team; P2_COLOR = TEAM_COLORS[team]; }
             // Update button states
             row.querySelectorAll('.team-btn').forEach(function(b) {
                 b.classList.remove('active');
@@ -35,6 +35,10 @@ function buildTeamPicker(container, playerNum) {
             var title = document.getElementById('p' + playerNum + '-title');
             if (col) { col.style.borderColor = TEAM_COLORS[team]; col.style.background = TEAM_COLORS[team] + '22'; }
             if (title) title.style.color = TEAM_COLORS[team];
+            // Refresh car preview to show team color
+            var pickerId = playerNum === 1 ? 'p1-car-types' : 'p2-car-types';
+            var picker = document.getElementById(pickerId);
+            if (picker && picker._refreshPreview) picker._refreshPreview(TEAM_COLORS[team]);
         };
         row.appendChild(btn);
     });
@@ -42,6 +46,11 @@ function buildTeamPicker(container, playerNum) {
 
 function updateColorPickerForVariant() {
     var isTeams = gameVariant === 'teams';
+    // Set player colors to match team when switching to teams mode
+    if (isTeams) {
+        P1_COLOR = TEAM_COLORS[selectedTeamP1 || 'red'];
+        P2_COLOR = TEAM_COLORS[selectedTeamP2 || 'blue'];
+    }
     // P1 color picker
     var p1Row = document.querySelector('#p1-col .color-picker-row');
     if (p1Row) {
@@ -67,7 +76,7 @@ function updateColorPickerForVariant() {
 function buildVariantSelector() {
     var row = document.getElementById('variant-selector');
     if (!row) return;
-    var variants = ['normal', 'hardcore', 'timed', 'teams', 'infected', 'robbery', 'ctf'];
+    var variants = ['normal', 'hardcore', 'timed', 'teams', 'infected', 'robbery', 'ctf', 'racing'];
     var suffix = gameMode === 'single' ? '-single' : '-multi';
     row.innerHTML = '';
     variants.forEach(function(v) {
@@ -82,6 +91,15 @@ function buildVariantSelector() {
             row.querySelectorAll('.variant-btn').forEach(function(b) { b.classList.remove('active'); });
             btn.classList.add('active');
             updateColorPickerForVariant();
+            // Auto-select Speedway map for racing mode
+            if (v === 'racing') {
+                selectedMap = 'speedway';
+                var mapBtns = document.querySelectorAll('.map-btn');
+                var mapIdx = MAPS.findIndex(function(m) { return m.id === 'speedway'; });
+                mapBtns.forEach(function(mb, idx) {
+                    mb.classList.toggle('selected', idx === mapIdx);
+                });
+            }
             // Update sub-note
             var subNote = document.getElementById('sub-note-text');
             if (subNote) subNote.textContent = mode.description;
@@ -592,7 +610,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
 
     var idx = Math.min(startIdx, pickableCars.length - 1);
     if (idx < 0) idx = 0;
-    var color = playerId === 'p1' ? P1_COLOR : P2_COLOR;
+    function getColor() { return playerId === 'p1' ? P1_COLOR : P2_COLOR; }
 
     // Wrapper
     var wrapper = document.createElement('div');
@@ -649,7 +667,7 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
         pctx.clearRect(0, 0, cvs.width, cvs.height);
         pctx.save();
         pctx.translate(cvs.width / 2, cvs.height / 2);
-        drawCarPreview(pctx, ct, color, 2.8);
+        drawCarPreview(pctx, ct, getColor(), 2.8);
         pctx.restore();
 
         // Update info
@@ -694,13 +712,12 @@ function buildOneCarTypePicker(containerId, startIdx, onSelect, playerId) {
 
     // Store updater so color changes can refresh the preview
     container._refreshPreview = function(newColor) {
-        color = newColor;
         var ct = pickableCars[idx];
         var pctx = cvs.getContext('2d');
         pctx.clearRect(0, 0, cvs.width, cvs.height);
         pctx.save();
         pctx.translate(cvs.width / 2, cvs.height / 2);
-        drawCarPreview(pctx, ct, color, 2.8);
+        drawCarPreview(pctx, ct, newColor || getColor(), 2.8);
         pctx.restore();
     };
 }
@@ -769,6 +786,7 @@ function startGame() {
     powerUps = []; powerUpSpawnTimer = 0; breakables = [];
     slomoActive = false; slomoTimer = 0; slomoFade = 0;
     ctfFlag = null; ctfScores = {}; ctfHoldTimer = 0; ctfBonusTimer = 0;
+    raceData = null;
     generateTerrain();
     spawnCars();
 }
@@ -790,6 +808,17 @@ function endGame() {
     var secs = Math.floor(gameTime % 60);
     var timeStr = mins + ':' + secs.toString().padStart(2, '0');
 
+    // Ensure dark player colors are readable on the dark game-over screen
+    function readableColor(hex) {
+        var c = hex.replace('#', '');
+        if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+        var r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+        var lum = (r * 0.299 + g * 0.587 + b * 0.114);
+        return lum < 60 ? '#ccc' : hex;
+    }
+    var p1StatsCol = readableColor(P1_COLOR);
+    var p2StatsCol = readableColor(P2_COLOR);
+
     if (gameMode === 'single') {
         var p = cars[0];
         // Fallback title if no activeMode
@@ -799,7 +828,7 @@ function endGame() {
             else { playSfx('lose'); title.textContent = 'GAME OVER'; title.style.color = '#f44'; }
         }
         document.getElementById('game-over-stats').innerHTML =
-            '<div style="color:' + P1_COLOR + '">' +
+            '<div style="color:' + p1StatsCol + '">' +
             '<b>Final Score: ' + score + '</b><br><br>' +
             'Kills: ' + p.kills + '<br>' +
             'Deaths: ' + p.deaths + '<br>' +
@@ -826,14 +855,14 @@ function endGame() {
         }
         document.getElementById('game-over-stats').innerHTML =
             '<div style="display:flex;gap:60px;justify-content:center">' +
-            '<div style="color:' + P1_COLOR + '">' +
+            '<div style="color:' + p1StatsCol + '">' +
             '<b>' + p1.name + '</b><br>' +
             'Kills: ' + p1.kills + '<br>' +
             'Deaths: ' + p1.deaths + '<br>' +
             'Hits: ' + p1.hits + '<br>' +
             'Damage: ' + Math.round(p1.damageDealt) +
             '</div>' +
-            '<div style="color:' + P2_COLOR + '">' +
+            '<div style="color:' + p2StatsCol + '">' +
             '<b>' + p2.name + '</b><br>' +
             'Kills: ' + p2.kills + '<br>' +
             'Deaths: ' + p2.deaths + '<br>' +

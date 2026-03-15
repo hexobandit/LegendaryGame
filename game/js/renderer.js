@@ -125,6 +125,27 @@ function drawTerrain() {
         }
     }
 
+    // Start/finish line (checkered pattern)
+    if (currentMap && currentMap.startFinishLine) {
+        let sfl = currentMap.startFinishLine;
+        let dx = sfl.x2 - sfl.x1, dy = sfl.y2 - sfl.y1;
+        let len = Math.hypot(dx, dy);
+        let nx = dx / len, ny = dy / len;
+        let squareSize = 10;
+        let numSquares = Math.floor(len / squareSize);
+        let angle = Math.atan2(dy, dx);
+        ctx.save();
+        ctx.translate(sfl.x1, sfl.y1);
+        ctx.rotate(angle);
+        for (let row = 0; row < 2; row++) {
+            for (let col = 0; col < numSquares; col++) {
+                ctx.fillStyle = (row + col) % 2 === 0 ? '#fff' : '#222';
+                ctx.fillRect(col * squareSize, row * squareSize - squareSize, squareSize, squareSize);
+            }
+        }
+        ctx.restore();
+    }
+
     // Parking grid lines
     if (currentMap && currentMap.terrain && currentMap.terrain.parkingGrid) {
         let pg = currentMap.terrain.parkingGrid;

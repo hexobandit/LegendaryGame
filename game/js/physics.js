@@ -678,6 +678,43 @@ function checkCollisions() {
 function respawnCar(car) {
     let rW = (currentMap && currentMap.arenaWidth) || ARENA_W;
     let rH = (currentMap && currentMap.arenaHeight) || ARENA_H;
+
+    // Racing respawn: place on track at last checkpoint
+    if (activeMode && activeMode.isRacing && raceData && currentMap.trackWaypoints) {
+        var ci = cars.indexOf(car);
+        var cp = (ci >= 0 && raceData.checkpoints[ci] != null) ? raceData.checkpoints[ci] : 0;
+        var wps = currentMap.trackWaypoints;
+        var wp = wps[cp];
+        var nextWp = wps[(cp + 1) % wps.length];
+        car.x = wp.x;
+        car.y = wp.y;
+        car.angle = Math.atan2(nextWp.y - wp.y, nextWp.x - wp.x);
+        car.vx = 0; car.vy = 0; car.speed = 0;
+        car.prevAngle = car.angle;
+        car.health = car.maxHealth;
+        car.alive = true;
+        car.spinTimer = 0;
+        car.turnTimer = 0;
+        car.invincible = 120;
+        car.nitro = CONFIG.nitroMax;
+        car.nitroCooldown = 0;
+        car.nitroActive = false;
+        car.nitroBurnTimer = 0;
+        car.lastHitBy = null;
+        car.airborne = false;
+        car.jumpT = 0;
+        car.lastRamp = null;
+        for (let i = 0; i < 15; i++) {
+            let a = (i / 15) * Math.PI * 2;
+            particles.push(mkParticle(
+                car.x + Math.cos(a) * 30, car.y + Math.sin(a) * 30,
+                Math.cos(a) * 2, Math.sin(a) * 2,
+                car.color, 5 + Math.random() * 4, 0.04
+            ));
+        }
+        return;
+    }
+
     let bestX, bestY, bestDist = 0;
     for (let attempt = 0; attempt < 20; attempt++) {
         let rx = 200 + Math.random() * (rW - 400);

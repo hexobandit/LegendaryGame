@@ -50,46 +50,94 @@ function drawHUD(car, vx, vy, vw, vh) {
         ctx.font = '11px Courier New'; ctx.textAlign = 'left';
         ctx.fillText(fpsDisplay + ' FPS', vx + pad, vy + pad + 10);
 
-        // ── Top-center: SCORE ──
-        var sw = 180, sh = 40;
-        var sx = vx + vw / 2 - sw / 2, sy = vy + pad;
-        hudPanel(sx, sy, sw, sh, '#ff4');
-        // Glow
-        ctx.shadowColor = '#ff4'; ctx.shadowBlur = 8;
-        ctx.fillStyle = '#ff4'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
-        ctx.fillText('SCORE', sx + sw / 2, sy + 14);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Courier New';
-        ctx.fillText(score, sx + sw / 2, sy + 34);
+        // ── Top-center: SCORE or RACE POSITION ──
+        if (activeMode && activeMode.isRacing && raceData) {
+            // Racing: show position badge + lap
+            var rPos = racingGetPosition(car.playerIdx);
+            var rOrd = racingOrdinal(rPos);
+            var rLap = Math.min((raceData.laps[car.playerIdx] || 0) + 1, raceData.totalLaps);
+            var rTotalLaps = raceData.totalLaps;
+            var sw = 180, sh = 52;
+            var sx = vx + vw / 2 - sw / 2, sy = vy + pad;
+            var posCol = rPos === 1 ? '#ffcc00' : rPos === 2 ? '#c0c0c0' : rPos === 3 ? '#cd7f32' : '#fff';
+            hudPanel(sx, sy, sw, sh, posCol);
+            ctx.shadowColor = posCol; ctx.shadowBlur = 10;
+            ctx.fillStyle = posCol; ctx.font = 'bold 26px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText(rOrd, sx + sw / 2, sy + 24);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#aaa'; ctx.font = 'bold 12px Arial';
+            ctx.fillText('LAP ' + rLap + '/' + rTotalLaps, sx + sw / 2, sy + 44);
+        } else {
+            var sw = 180, sh = 40;
+            var sx = vx + vw / 2 - sw / 2, sy = vy + pad;
+            hudPanel(sx, sy, sw, sh, '#ff4');
+            // Glow
+            ctx.shadowColor = '#ff4'; ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ff4'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+            ctx.fillText('SCORE', sx + sw / 2, sy + 14);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Courier New';
+            ctx.fillText(score, sx + sw / 2, sy + 34);
+        }
 
-        // ── Top-right: Stats (kills, deaths, AI, time) ──
-        var trw = 160, trh = 88;
-        var trx = vx + vw - pad - trw, try_ = vy + pad;
-        hudPanel(trx, try_, trw, trh, accent);
+        // ── Top-right: Stats or Race Leaderboard ──
+        if (activeMode && activeMode.isRacing && raceData) {
+            // Racing leaderboard — show top positions
+            var trw = 160, trh = 16 + Math.min(cars.length, 8) * 16 + 4;
+            var trx = vx + vw - pad - trw, try_ = vy + pad;
+            hudPanel(trx, try_, trw, trh, accent);
+            ctx.fillStyle = '#888'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'left';
+            ctx.fillText('RACE STANDINGS', trx + 10, try_ + 13);
+            var showCount = Math.min(cars.length, 8);
+            for (var ri = 0; ri < showCount; ri++) {
+                var ci = raceData.positions[ri];
+                if (ci == null) continue;
+                var rc = cars[ci];
+                var rLap = raceData.laps[ci] || 0;
+                var row_y = try_ + 28 + ri * 16;
+                var isPlayer = rc.playerIdx >= 0;
+                var posCol2 = ri === 0 ? '#ffcc00' : ri === 1 ? '#c0c0c0' : ri === 2 ? '#cd7f32' : '#888';
+                ctx.fillStyle = posCol2; ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'left';
+                ctx.fillText((ri + 1) + '.', trx + 8, row_y);
+                ctx.fillStyle = isPlayer ? accent : '#ccc'; ctx.font = (isPlayer ? 'bold ' : '') + '10px Arial';
+                ctx.fillText(rc.name, trx + 26, row_y);
+                ctx.fillStyle = '#adf'; ctx.font = '10px Courier New'; ctx.textAlign = 'right';
+                ctx.fillText('L' + rLap, trx + trw - 10, row_y);
+            }
+            // Time below leaderboard
+            var mins = Math.floor(gameTime / 60), secs = Math.floor(gameTime % 60);
+            var timeStr = mins + ':' + secs.toString().padStart(2, '0');
+            ctx.fillStyle = '#adf'; ctx.font = '11px Courier New'; ctx.textAlign = 'right';
+            ctx.fillText(timeStr, trx + trw - 10, try_ + trh + 14);
+        } else {
+            var trw = 160, trh = 88;
+            var trx = vx + vw - pad - trw, try_ = vy + pad;
+            hudPanel(trx, try_, trw, trh, accent);
 
-        var numAI = (activeMode && activeMode.aiCount != null) ? activeMode.aiCount : 11;
-        var alive = cars.filter(function(c) { return c.alive && c.playerIdx === -1; }).length;
+            var numAI = (activeMode && activeMode.aiCount != null) ? activeMode.aiCount : 11;
+            var alive = cars.filter(function(c) { return c.alive && c.playerIdx === -1; }).length;
 
-        // Time display: countdown for timed mode, elapsed otherwise
-        var timeLeft = (activeMode && activeMode.timeLimit) ? Math.max(0, activeMode.timeLimit - gameTime) : 0;
-        var displayTime = timeLeft > 0 ? timeLeft : gameTime;
-        var mins = Math.floor(displayTime / 60), secs = Math.floor(displayTime % 60);
-        var timeStr = mins + ':' + secs.toString().padStart(2, '0');
-        var timeCol = (timeLeft > 0 && timeLeft < 30) ? '#f44' : (timeLeft > 0 && timeLeft < 60) ? '#ff4' : '#adf';
-        var timeLabel = timeLeft > 0 ? 'LEFT' : 'TIME';
+            // Time display: countdown for timed mode, elapsed otherwise
+            var timeLeft = (activeMode && activeMode.timeLimit) ? Math.max(0, activeMode.timeLimit - gameTime) : 0;
+            var displayTime = timeLeft > 0 ? timeLeft : gameTime;
+            var mins = Math.floor(displayTime / 60), secs = Math.floor(displayTime % 60);
+            var timeStr = mins + ':' + secs.toString().padStart(2, '0');
+            var timeCol = (timeLeft > 0 && timeLeft < 30) ? '#f44' : (timeLeft > 0 && timeLeft < 60) ? '#ff4' : '#adf';
+            var timeLabel = timeLeft > 0 ? 'LEFT' : 'TIME';
 
-        var stats = [
-            { label: 'KILLS',   val: car.kills,              col: '#fff' },
-            { label: 'DEATHS',  val: car.deaths,             col: '#f88' },
-            { label: (activeMode && activeMode.isCops) ? 'COPS' : (activeMode && activeMode.isCTF) ? 'RIVALS' : 'AI LEFT', val: alive + '/' + numAI, col: alive > 0 ? '#f84' : '#4f4' },
-            { label: timeLabel, val: timeStr,                col: timeCol },
-        ];
-        for (var i = 0; i < stats.length; i++) {
-            var row_y = try_ + 16 + i * 18;
-            ctx.fillStyle = '#777'; ctx.font = '11px Arial'; ctx.textAlign = 'left';
-            ctx.fillText(stats[i].label, trx + 10, row_y);
-            ctx.fillStyle = stats[i].col; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'right';
-            ctx.fillText(stats[i].val, trx + trw - 10, row_y);
+            var stats = [
+                { label: 'KILLS',   val: car.kills,              col: '#fff' },
+                { label: 'DEATHS',  val: car.deaths,             col: '#f88' },
+                { label: (activeMode && activeMode.isCops) ? 'COPS' : (activeMode && activeMode.isCTF) ? 'RIVALS' : 'AI LEFT', val: alive + '/' + numAI, col: alive > 0 ? '#f84' : '#4f4' },
+                { label: timeLabel, val: timeStr,                col: timeCol },
+            ];
+            for (var i = 0; i < stats.length; i++) {
+                var row_y = try_ + 16 + i * 18;
+                ctx.fillStyle = '#777'; ctx.font = '11px Arial'; ctx.textAlign = 'left';
+                ctx.fillText(stats[i].label, trx + 10, row_y);
+                ctx.fillStyle = stats[i].col; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'right';
+                ctx.fillText(stats[i].val, trx + trw - 10, row_y);
+            }
         }
 
         // ── Bottom-left: Speed + Nitro ──
@@ -223,6 +271,21 @@ function drawHUD(car, vx, vy, vw, vh) {
         ctx.fillStyle = 'rgba(40,50,30,.5)';
         var mcx = mmx + mmS / 2, mcy = mmy + mmS / 2;
         ctx.beginPath(); ctx.arc(mcx, mcy, mmS * 520 / mmArenaW, 0, Math.PI * 2); ctx.fill();
+        // Track outline on minimap (single player)
+        if (currentMap && currentMap.trackWaypoints) {
+            var twps = currentMap.trackWaypoints;
+            ctx.strokeStyle = 'rgba(255,255,255,.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (var ti = 0; ti <= twps.length; ti++) {
+                var tw = twps[ti % twps.length];
+                var tmx = mmx + (tw.x / mmArenaW) * mmS;
+                var tmy = mmy + (tw.y / mmArenaH) * mmS;
+                if (ti === 0) ctx.moveTo(tmx, tmy);
+                else ctx.lineTo(tmx, tmy);
+            }
+            ctx.stroke();
+        }
         for (var pi = 0; pi < powerUps.length; pi++) {
             var pu = powerUps[pi];
             var mx = mmx + (pu.x / mmArenaW) * mmS;
@@ -407,6 +470,21 @@ function drawHUD(car, vx, vy, vw, vh) {
         ctx.fillStyle = 'rgba(40,50,30,.5)';
         var mcx = mmx + mmS / 2, mcy = mmy + mmS / 2;
         ctx.beginPath(); ctx.arc(mcx, mcy, mmS * 520 / mmArenaW, 0, Math.PI * 2); ctx.fill();
+        // Track outline on minimap (multiplayer)
+        if (currentMap && currentMap.trackWaypoints) {
+            var twps = currentMap.trackWaypoints;
+            ctx.strokeStyle = 'rgba(255,255,255,.3)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (var ti = 0; ti <= twps.length; ti++) {
+                var tw = twps[ti % twps.length];
+                var tmx = mmx + (tw.x / mmArenaW) * mmS;
+                var tmy = mmy + (tw.y / mmArenaH) * mmS;
+                if (ti === 0) ctx.moveTo(tmx, tmy);
+                else ctx.lineTo(tmx, tmy);
+            }
+            ctx.stroke();
+        }
         for (var pi = 0; pi < powerUps.length; pi++) {
             var pu = powerUps[pi];
             var mx = mmx + (pu.x / mmArenaW) * mmS;

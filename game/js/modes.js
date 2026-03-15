@@ -681,3 +681,190 @@ registerMode('robbery-multi', {
         return { won: true, title: 'GETAWAY!', titleColor: '#4f4', sfx: 'win' };
     },
 });
+
+// ═══════════════════════════════════════════
+//  RACING — oval track, lap counting, positions
+// ═══════════════════════════════════════════
+
+function racingSetup() {
+    var wps = currentMap.trackWaypoints;
+    if (!wps) return;
+    var totalLaps = currentMap.trackLaps || 3;
+    raceData = {
+        totalLaps: totalLaps,
+        laps: [],
+        checkpoints: [],
+        progress: [],
+        positions: [],
+        lapTimes: [],
+        currentLapStart: [],
+        bestLap: [],
+        finished: [],
+        finishOrder: [],
+    };
+    for (var i = 0; i < cars.length; i++) {
+        raceData.laps[i] = 0;
+        raceData.checkpoints[i] = 0;
+        raceData.progress[i] = 0;
+        raceData.positions[i] = i;
+        raceData.lapTimes[i] = [];
+        raceData.currentLapStart[i] = 0;
+        raceData.bestLap[i] = Infinity;
+        raceData.finished[i] = false;
+    }
+}
+
+function racingNearestWaypoint(car) {
+    var wps = currentMap.trackWaypoints;
+    var bestIdx = 0, bestD = Infinity;
+    for (var i = 0; i < wps.length; i++) {
+        var d = Math.hypot(car.x - wps[i].x, car.y - wps[i].y);
+        if (d < bestD) { bestD = d; bestIdx = i; }
+    }
+    return bestIdx;
+}
+
+function racingUpdate(dt) {
+    if (!raceData || !currentMap.trackWaypoints) return;
+    var wps = currentMap.trackWaypoints;
+    var n = wps.length;
+
+    for (var i = 0; i < cars.length; i++) {
+        if (!cars[i].alive) continue;
+        if (raceData.finished[i]) continue;
+
+        var nearest = racingNearestWaypoint(cars[i]);
+        var current = raceData.checkpoints[i];
+
+        // Only advance checkpoint if it's the next one (or close to next)
+        var next = (current + 1) % n;
+        var next2 = (current + 2) % n;
+        if (nearest === next || nearest === next2) {
+            raceData.checkpoints[i] = nearest;
+        }
+
+        // Lap detection — crossing from last waypoints back to first
+        if (current >= n - 3 && nearest <= 2 && raceData.checkpoints[i] !== current) {
+            // Only count if we actually advanced through most of the track
+            if (current >= n - 3) {
+                raceData.laps[i]++;
+                raceData.checkpoints[i] = 0;
+
+                // Record lap time
+                var lapTime = gameTime - raceData.currentLapStart[i];
+                raceData.lapTimes[i].push(lapTime);
+                if (lapTime < raceData.bestLap[i]) raceData.bestLap[i] = lapTime;
+                raceData.currentLapStart[i] = gameTime;
+
+                // Lap completion notification
+                if (raceData.laps[i] < raceData.totalLaps) {
+                    floatingTexts.push({
+                        x: cars[i].x, y: cars[i].y - 50,
+                        text: 'LAP ' + raceData.laps[i] + '/' + raceData.totalLaps,
+                        color: '#fff', alpha: 1, vy: -0.8, life: 90,
+                        bubble: true, bubbleColor: '#ffaa00'
+                    });
+                    playSfxThrottled('kill', 100);
+                }
+
+                // Finished?
+                if (raceData.laps[i] >= raceData.totalLaps) {
+                    raceData.finished[i] = true;
+                    raceData.finishOrder.push(i);
+                    var pos = raceData.finishOrder.length;
+                    var suffix = pos === 1 ? 'ST' : pos === 2 ? 'ND' : pos === 3 ? 'RD' : 'TH';
+                    floatingTexts.push({
+                        x: cars[i].x, y: cars[i].y - 50,
+                        text: pos + suffix + ' PLACE!',
+                        color: '#fff', alpha: 1, vy: -0.9, life: 120,
+                        bubble: true, bubbleColor: pos === 1 ? '#ffcc00' : pos === 2 ? '#c0c0c0' : '#cd7f32'
+                    });
+                    playSfxThrottled(pos <= 2 ? 'win' : 'kill', 100);
+                }
+            }
+        }
+
+        // Progress score for position sorting
+        raceData.progress[i] = raceData.laps[i] * n + raceData.checkpoints[i];
+    }
+
+    // Sort positions
+    var indices = [];
+    for (var i = 0; i < cars.length; i++) indices.push(i);
+    indices.sort(function(a, b) {
+        // Finished cars always rank higher, by finish order
+        if (raceData.finished[a] && !raceData.finished[b]) return -1;
+        if (!raceData.finished[a] && raceData.finished[b]) return 1;
+        if (raceData.finished[a] && raceData.finished[b]) {
+            return raceData.finishOrder.indexOf(a) - raceData.finishOrder.indexOf(b);
+        }
+        return raceData.progress[b] - raceData.progress[a];
+    });
+    raceData.positions = indices;
+
+    // Score for player based on position
+    var p0pos = raceData.positions.indexOf(0);
+    if (p0pos >= 0) score += Math.round(dt * (cars.length - p0pos) * 3);
+}
+
+function racingCheckWin() {
+    if (!raceData) return false;
+    // End when any car finishes all laps
+    for (var i = 0; i < cars.length; i++) {
+        if (raceData.finished[i]) return true;
+    }
+    return false;
+}
+
+function racingGetPosition(carIdx) {
+    if (!raceData) return carIdx + 1;
+    return raceData.positions.indexOf(carIdx) + 1;
+}
+
+function racingOrdinal(n) {
+    if (n === 1) return '1st';
+    if (n === 2) return '2nd';
+    if (n === 3) return '3rd';
+    return n + 'th';
+}
+
+registerMode('racing-single', {
+    id: 'racing-single',
+    label: 'RACING',
+    description: 'First to 3 laps wins!',
+    playerCount: 1, aiCount: 7,
+    respawn: true, teams: false, timeLimit: 0,
+    isRacing: true,
+
+    setup: racingSetup,
+    update: function(dt) { racingUpdate(dt); },
+    checkWin: racingCheckWin,
+    results: function() {
+        var pos = racingGetPosition(0);
+        var won = pos === 1;
+        var title = won ? 'RACE WINNER!' : racingOrdinal(pos) + ' PLACE';
+        var col = won ? '#ffcc00' : pos <= 3 ? '#c0c0c0' : '#f84';
+        return { won: won, title: title, titleColor: col, sfx: won ? 'win' : 'lose' };
+    },
+});
+
+registerMode('racing-multi', {
+    id: 'racing-multi',
+    label: 'RACING',
+    description: 'First to 3 laps wins!',
+    playerCount: 2, aiCount: 6,
+    respawn: true, teams: false, timeLimit: 0,
+    isRacing: true,
+
+    setup: racingSetup,
+    update: function(dt) { racingUpdate(dt); },
+    checkWin: racingCheckWin,
+    results: function() {
+        var p1pos = racingGetPosition(0);
+        var p2pos = racingGetPosition(1);
+        if (p1pos < p2pos) return { won: true, title: cars[0].name + ' WINS ' + racingOrdinal(p1pos) + '!', titleColor: P1_COLOR, sfx: 'win' };
+        if (p2pos < p1pos) return { won: true, title: cars[1].name + ' WINS ' + racingOrdinal(p2pos) + '!', titleColor: P2_COLOR, sfx: 'win' };
+        var wi = raceData.finishOrder.length > 0 ? raceData.finishOrder[0] : 0;
+        return { won: true, title: cars[wi].name + ' WINS!', titleColor: wi === 0 ? P1_COLOR : P2_COLOR, sfx: 'win' };
+    },
+});

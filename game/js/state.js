@@ -36,6 +36,9 @@ var slomoTimer = 0;
 var slomoFade = 0;
 var slomoDuration = 3;           // seconds of slow-mo before game over
 
+// Racing
+var raceData = null;           // { laps[], checkpoints[], positions[], totalLaps, lapTimes[], currentLapStart[] }
+
 // Capture the Flag
 var ctfFlag = null;            // { x, y, carrier: car|null, bobPhase }
 var ctfScores = {};            // carIndex -> score
