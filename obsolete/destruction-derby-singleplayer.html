@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Destruction Derby - Single Player</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+#gameCanvas { display: block; }
+
+/* ── Start / Game-Over Overlays ── */
+.overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 200; color: #fff;
+}
+#start-screen { background: rgba(0,0,0,0.92); }
+#start-screen h1 {
+    font-size: 56px; letter-spacing: 4px;
+    background: linear-gradient(90deg, #ff6eb4, #6eb4ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+#start-screen h2 { font-size: 18px; color: #aaa; margin-bottom: 36px; font-weight: normal; }
+.player-col { padding: 18px 28px; border-radius: 10px; margin-bottom: 36px; text-align: center; }
+.player-col.main { background: rgba(255,110,180,0.15); border: 1px solid #ff6eb4; }
+.player-col .ptitle { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #ff6eb4; }
+.player-col .pkey { font-size: 13px; color: #ccc; line-height: 1.9; }
+.player-col .pkey b { display: inline-block; min-width: 80px; color: #fff; }
+.color-picker-row { margin: 12px 0 4px; }
+.color-picker-row span { font-size: 12px; color: #aaa; margin-right: 8px; }
+.color-swatches { display: flex; gap: 6px; justify-content: center; margin-top: 6px; flex-wrap: wrap; max-width: 280px; margin-left: auto; margin-right: auto; }
+.color-swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: transform .12s, border-color .12s;
+    pointer-events: all;
+}
+.color-swatch:hover { transform: scale(1.2); }
+.color-swatch.selected { border-color: #fff; transform: scale(1.25); }
+.start-btn {
+    cursor: pointer; border: none; padding: 16px 56px;
+    font-size: 24px; font-weight: bold; border-radius: 8px;
+    background: linear-gradient(90deg, #ff6eb4, #6eb4ff);
+    color: #fff; letter-spacing: 2px; transition: transform .15s;
+}
+.start-btn:hover { transform: scale(1.05); }
+.sub-note { color: #666; font-size: 13px; margin-top: 20px; }
+#game-over-screen { background: rgba(0,0,0,0.88); display: none; }
+#game-over-screen h1 { font-size: 50px; margin-bottom: 12px; }
+#game-over-stats { font-size: 17px; color: #ccc; line-height: 2; text-align: center; }
+.restart-btn {
+    cursor: pointer; border: none; padding: 14px 44px; margin-top: 24px;
+    font-size: 20px; font-weight: bold; border-radius: 8px;
+    background: linear-gradient(90deg, #ff6eb4, #6eb4ff);
+    color: #fff; letter-spacing: 2px;
+}
+#pause-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,.65); z-index: 140;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff;
+}
+#pause-overlay h1 { font-size: 52px; margin-bottom: 12px; letter-spacing: 4px; }
+#pause-overlay .sub { color: #888; font-size: 16px; margin-bottom: 30px; }
+#pause-overlay .resume-btn {
+    pointer-events: all; cursor: pointer;
+    background: linear-gradient(90deg, #ff6eb4, #6eb4ff);
+    color: #fff; border: none; padding: 14px 44px;
+    font-size: 20px; font-weight: bold; border-radius: 8px;
+    letter-spacing: 2px;
+}
+#pause-overlay .menu-btn {
+    pointer-events: all; cursor: pointer;
+    background: #444; color: #ccc; border: none; padding: 12px 40px;
+    font-size: 17px; font-weight: bold; border-radius: 8px;
+    letter-spacing: 2px; margin-top: 14px;
+}
+#pause-overlay .menu-btn:hover { background: #555; color: #fff; }
+.fullscreen-btn {
+    pointer-events: all; cursor: pointer;
+    background: rgba(255,255,255,.15); color: #aaa; border: 1px solid #555;
+    padding: 8px 24px; font-size: 14px; font-weight: bold; border-radius: 6px;
+    letter-spacing: 1px; margin-top: 14px; transition: background .15s;
+}
+.fullscreen-btn:hover { background: rgba(255,255,255,.25); color: #fff; }
+#ingame-fullscreen-btn {
+    position: absolute; top: 10px; right: 10px; z-index: 150;
+    pointer-events: all; cursor: pointer;
+    background: rgba(0,0,0,.35); color: rgba(255,255,255,.5);
+    border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
+    padding: 4px 8px; font-size: 16px; line-height: 1;
+    transition: background .15s, color .15s;
+}
+#ingame-fullscreen-btn:hover { background: rgba(0,0,0,.6); color: rgba(255,255,255,.8); }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="pause-overlay">
+    <h1>PAUSED</h1>
+    <div class="sub">Press ESC or click to resume</div>
+    <button class="resume-btn" onclick="togglePause()">RESUME</button>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
+    <button class="menu-btn" onclick="showStartScreen()">MENU</button>
+</div>
+<button id="ingame-fullscreen-btn" onclick="toggleFullscreen()" style="display:none;">&#x26F6;</button>
+
+<!-- ── Start screen ── -->
+<div id="start-screen" class="overlay">
+    <h1>DESTRUCTION DERBY</h1>
+    <h2>Single Player</h2>
+    <div class="player-col main" id="p1-col">
+        <div class="ptitle" id="p1-title">Your Car</div>
+        <div class="color-picker-row">
+            <span>Pick your color:</span>
+            <div class="color-swatches" id="p1-swatches"></div>
+        </div>
+        <div class="pkey">
+            <b>A / &#8592;</b> Steer Left<br>
+            <b>D / &#8594;</b> Steer Right<br>
+            <b>S / &#8595;</b> Brake<br>
+            <b>W / &#8593;</b> Nitro<br>
+            <b>Space</b> Handbrake<br>
+            <b>R</b> Reset Position
+        </div>
+    </div>
+    <button class="start-btn" onclick="startGame()">START</button>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" style="margin-top:12px;">FULLSCREEN</button>
+    <div class="sub-note">Auto-throttle is ON — just steer & smash! Destroy all 11 AI opponents to win.</div>
+</div>
+
+<!-- ── Game over screen ── -->
+<div id="game-over-screen" class="overlay">
+    <h1 id="go-title">GAME OVER</h1>
+    <div id="game-over-stats"></div>
+    <button class="restart-btn" onclick="showStartScreen()">PLAY AGAIN</button>
+</div>
+
+<script>
+// ================================================================
+//  CANVAS
+// ================================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ================================================================
+//  AUDIO — cute SFX via Web Audio API (no motor drone!)
+// ================================================================
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playSfx(type) {
+    ensureAudio();
+    const ac = audioCtx;
+    const now = ac.currentTime;
+    const g = ac.createGain();
+    g.connect(ac.destination);
+
+    if (type === 'bump') {
+        const o = ac.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(280, now);
+        o.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+        g.gain.setValueAtTime(0.35, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        o.connect(g); o.start(now); o.stop(now + 0.16);
+    }
+    else if (type === 'hit') {
+        const o = ac.createOscillator();
+        o.type = 'square';
+        o.frequency.setValueAtTime(400, now);
+        o.frequency.exponentialRampToValueAtTime(60, now + 0.10);
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+        o.connect(g); o.start(now); o.stop(now + 0.14);
+        const buf = ac.createBuffer(1, ac.sampleRate * 0.07, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.4;
+        const n = ac.createBufferSource(); n.buffer = buf;
+        const ng = ac.createGain(); ng.gain.setValueAtTime(0.22, now);
+        ng.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        n.connect(ng); ng.connect(ac.destination); n.start(now); n.stop(now + 0.09);
+    }
+    else if (type === 'explode') {
+        const o = ac.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(600, now);
+        o.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+        g.gain.setValueAtTime(0.4, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        o.connect(g); o.start(now); o.stop(now + 0.42);
+        const buf = ac.createBuffer(1, ac.sampleRate * 0.25, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+        const n = ac.createBufferSource(); n.buffer = buf;
+        const ng = ac.createGain(); ng.gain.setValueAtTime(0.3, now);
+        ng.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        n.connect(ng); ng.connect(ac.destination); n.start(now); n.stop(now + 0.3);
+    }
+    else if (type === 'nitro') {
+        const o = ac.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(500, now);
+        o.frequency.exponentialRampToValueAtTime(1200, now + 0.12);
+        g.gain.setValueAtTime(0.12, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        o.connect(g); o.start(now); o.stop(now + 0.16);
+    }
+    else if (type === 'drift') {
+        const o = ac.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(900 + Math.random() * 300, now);
+        o.frequency.exponentialRampToValueAtTime(300, now + 0.06);
+        g.gain.setValueAtTime(0.06, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        o.connect(g); o.start(now); o.stop(now + 0.08);
+    }
+    else if (type === 'win') {
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((f, i) => {
+            const o = ac.createOscillator();
+            o.type = 'sine';
+            const gg = ac.createGain();
+            o.frequency.value = f;
+            gg.gain.setValueAtTime(0.25, now + i * 0.12);
+            gg.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+            o.connect(gg); gg.connect(ac.destination);
+            o.start(now + i * 0.12); o.stop(now + i * 0.12 + 0.3);
+        });
+    }
+    else if (type === 'lose') {
+        const notes = [400, 350, 280, 200];
+        notes.forEach((f, i) => {
+            const o = ac.createOscillator();
+            o.type = 'sine';
+            const gg = ac.createGain();
+            o.frequency.value = f;
+            gg.gain.setValueAtTime(0.2, now + i * 0.18);
+            gg.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.3);
+            o.connect(gg); gg.connect(ac.destination);
+            o.start(now + i * 0.18); o.stop(now + i * 0.18 + 0.35);
+        });
+    }
+    else if (type === 'countdown') {
+        const o = ac.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = 660;
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        o.connect(g); o.start(now); o.stop(now + 0.16);
+    }
+    else if (type === 'go') {
+        const o = ac.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = 990;
+        g.gain.setValueAtTime(0.3, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        o.connect(g); o.start(now); o.stop(now + 0.32);
+    }
+    else if (type === 'kill') {
+        [660, 880].forEach((f, i) => {
+            const o = ac.createOscillator();
+            o.type = 'triangle';
+            const gg = ac.createGain();
+            o.frequency.value = f;
+            gg.gain.setValueAtTime(0.22, now + i * 0.08);
+            gg.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.18);
+            o.connect(gg); gg.connect(ac.destination);
+            o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.2);
+        });
+    }
+}
+
+// Throttle SFX so we don't spam
+let lastSfx = {};
+function playSfxThrottled(type, minGap) {
+    const now = performance.now();
+    if (lastSfx[type] && now - lastSfx[type] < minGap) return;
+    lastSfx[type] = now;
+    playSfx(type);
+}
+
+// ================================================================
+//  CONSTANTS
+// ================================================================
+const ARENA_W = 3200;
+const ARENA_H = 3200;
+const NUM_AI = 11;
+const FRICTION = 0.97;
+const TURN_SPEED = 0.045;
+const AUTO_ACCEL = 0.22;
+const BRAKE_FORCE = 0.25;
+const MAX_SPEED = 7.5;
+const NITRO_MAX_SPEED = 12;
+const NITRO_ACCEL = 0.5;
+const NITRO_MAX = 100;
+const NITRO_DRAIN = 0.9;
+const NITRO_REGEN = 0.12;
+const HANDBRAKE_FRICTION = 0.987;
+const HANDBRAKE_TURN = 0.07;
+const COLLISION_DMG = 0.9;
+const CAR_W = 40;
+const CAR_H = 22;
+
+// ================================================================
+//  GAME STATE
+// ================================================================
+let gameState = 'menu'; // menu | countdown | playing | paused | gameover
+let countdownVal = 3;
+let countdownTimer = 0;
+let gameTime = 0;
+let cars = [];
+let particles = [];
+let skidMarks = [];
+let debris = [];
+let keys = {};
+let powerUps = [];
+let powerUpSpawnTimer = 0;
+let obstacles = [];
+let grassPatches = [];
+let dirtPatches = [];
+let floatingTexts = [];
+let score = 0;
+
+let P1_COLOR = '#ff6eb4';
+
+const PLAYER_COLOR_OPTIONS = [
+    '#ff6eb4', '#ff3388', '#ff4466', '#e03030', '#ff6030',
+    '#ff9030', '#ffcc00', '#88dd22', '#30c030', '#20ccaa',
+    '#30c0c0', '#6eb4ff', '#3060e0', '#6060ff', '#a060ff',
+    '#c040c0', '#e0e0e0', '#ffaacc', '#aaffdd', '#ffe066'
+];
+
+// Build color swatches on start screen (single player only)
+function buildSwatches() {
+    const p1Container = document.getElementById('p1-swatches');
+    p1Container.innerHTML = '';
+    PLAYER_COLOR_OPTIONS.forEach(c => {
+        const s1 = document.createElement('div');
+        s1.className = 'color-swatch' + (c === P1_COLOR ? ' selected' : '');
+        s1.style.background = c;
+        s1.onclick = () => {
+            P1_COLOR = c;
+            p1Container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            s1.classList.add('selected');
+            document.getElementById('p1-col').style.borderColor = c;
+            document.getElementById('p1-col').style.background = c + '22';
+            document.getElementById('p1-title').style.color = c;
+        };
+        p1Container.appendChild(s1);
+    });
+}
+buildSwatches();
+
+const AI_COLORS = [
+    '#e03030', '#30c030', '#e0e030', '#e07020',
+    '#c040c0', '#30c0c0', '#e0e0e0', '#ff9030',
+    '#90ff60', '#a060ff', '#6eb4ff'
+];
+const AI_NAMES = [
+    'CRUSHER', 'MANIAC', 'WRECKER', 'SMASHER',
+    'BRUISER', 'DEMON', 'HAVOC', 'FURY',
+    'BRAWLER', 'VANDAL', 'CHAOS'
+];
+
+// ================================================================
+//  TERRAIN
+// ================================================================
+function generateTerrain() {
+    grassPatches = [];
+    dirtPatches = [];
+    for (let i = 0; i < 250; i++) {
+        grassPatches.push({
+            x: Math.random() * ARENA_W, y: Math.random() * ARENA_H,
+            r: 15 + Math.random() * 45, shade: Math.random() * 0.15
+        });
+    }
+    for (let i = 0; i < 90; i++) {
+        dirtPatches.push({
+            x: Math.random() * ARENA_W, y: Math.random() * ARENA_H,
+            r: 10 + Math.random() * 30, shade: Math.random() * 0.1
+        });
+    }
+    obstacles = [];
+    for (let i = 0; i < 22; i++) {
+        let ox = 220 + Math.random() * (ARENA_W - 440);
+        let oy = 220 + Math.random() * (ARENA_H - 440);
+        if (Math.hypot(ox - ARENA_W/2, oy - ARENA_H/2) < 350) continue;
+        obstacles.push({
+            x: ox, y: oy,
+            r: 26 + Math.random() * 36,
+            color: `rgb(${100+Math.random()*50|0},${85+Math.random()*40|0},${60+Math.random()*30|0})`
+        });
+    }
+}
+
+// ================================================================
+//  CAR FACTORY
+// ================================================================
+function createCar(x, y, angle, color, name, playerIdx) {
+    return {
+        x, y, angle, vx: 0, vy: 0, speed: 0,
+        color, name, playerIdx, // 0=player, -1=AI
+        health: 100, maxHealth: 100, alive: true,
+        nitro: NITRO_MAX, handbrake: false, drifting: false,
+        nitroCooldown: 0, nitroActive: false, nitroBurnTimer: 0,
+        width: CAR_W, height: CAR_H,
+        kills: 0, hits: 0, damageDealt: 0,
+        aiTarget: null, aiState: 'roam', aiTimer: 0, aiSteerDir: 0,
+        damageCooldown: 0, lastHitBy: null, spinTimer: 0, invincible: 0,
+        nitroSfxCooldown: 0, driftSfxCooldown: 0,
+        turnTimer: 0, prevAngle: angle,
+        respawnTimer: 0, deaths: 0,
+        activePowerUp: null, powerUpTimer: 0
+    };
+}
+
+function spawnCars() {
+    cars = [];
+    // Player car in center
+    cars.push(createCar(ARENA_W/2, ARENA_H/2, -Math.PI/2, P1_COLOR, 'PLAYER', 0));
+    // 11 AI opponents spread around the arena
+    for (let i = 0; i < NUM_AI; i++) {
+        const ang = (i / NUM_AI) * Math.PI * 2;
+        const dist = 500 + Math.random() * 600;
+        cars.push(createCar(
+            ARENA_W/2 + Math.cos(ang) * dist,
+            ARENA_H/2 + Math.sin(ang) * dist,
+            ang + Math.PI,
+            AI_COLORS[i], AI_NAMES[i], -1
+        ));
+    }
+}
+
+// ================================================================
+//  INPUT
+// ================================================================
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(()=>{});
+    } else {
+        document.exitFullscreen();
+    }
+}
+window.addEventListener('keydown', e => {
+    if (e.code === 'Escape') { togglePause(); e.preventDefault(); return; }
+    if (e.code === 'F11') { e.preventDefault(); toggleFullscreen(); return; }
+    keys[e.code] = true; e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+function togglePause() {
+    if (gameState === 'playing') {
+        gameState = 'paused';
+        document.getElementById('pause-overlay').style.display = 'flex';
+    } else if (gameState === 'paused') {
+        gameState = 'playing';
+        document.getElementById('pause-overlay').style.display = 'none';
+    }
+}
+
+// ================================================================
+//  UPDATE — PLAYER (auto-throttle, both WASD and arrows)
+// ================================================================
+function updatePlayer(car) {
+    if (!car.alive) return;
+
+    // Reset position with R key
+    if (keys['KeyR']) {
+        car.vx = 0; car.vy = 0; car.speed = 0;
+        car.spinTimer = 0;
+        keys['KeyR'] = false;
+    }
+
+    let left  = keys['KeyA'] || keys['ArrowLeft'];
+    let right = keys['KeyD'] || keys['ArrowRight'];
+    let brake = keys['KeyS'] || keys['ArrowDown'];
+    let nitroKey = keys['KeyW'] || keys['ArrowUp'];
+    let handbrakeKey = keys['Space'];
+
+    car.handbrake = handbrakeKey;
+    let spd = Math.hypot(car.vx, car.vy);
+    let turnRate = car.handbrake ? HANDBRAKE_TURN : TURN_SPEED;
+    if (spd < 1) turnRate *= spd;
+
+    let isTurning = left || right;
+    if (left)  car.angle -= turnRate;
+    if (right) car.angle += turnRate;
+
+    // Track how long the player has been turning
+    let angleDelta = car.angle - car.prevAngle;
+    while (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
+    while (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
+    if (isTurning && Math.abs(angleDelta) > 0.01) {
+        car.turnTimer++;
+    } else {
+        car.turnTimer = Math.max(0, car.turnTimer - 2);
+    }
+    car.prevAngle = car.angle;
+
+    // Nitro activation: cooldown-based system
+    if (nitroKey && car.nitro >= NITRO_MAX && car.nitroCooldown <= 0 && !car.nitroActive) {
+        car.nitroActive = true;
+        car.nitroBurnTimer = 120; // ~2 seconds
+    }
+
+    // Nitro burn timer
+    if (car.nitroActive) {
+        car.nitroBurnTimer--;
+        if (car.nitroBurnTimer <= 0) {
+            car.nitroActive = false;
+            car.nitroCooldown = 480; // ~8 seconds cooldown
+            car.nitro = 0;
+        }
+    }
+
+    // Cooldown tick
+    if (car.nitroCooldown > 0) {
+        car.nitroCooldown--;
+        if (car.nitroCooldown <= 0) {
+            car.nitro = NITRO_MAX; // fully recharged
+        }
+    }
+
+    let useNitro = car.nitroActive;
+    let speedMult = car.activePowerUp === 'speed' ? 1.35 : 1;
+    let accel = (useNitro ? NITRO_ACCEL : AUTO_ACCEL) * speedMult;
+    let maxSpd = (useNitro ? NITRO_MAX_SPEED : MAX_SPEED) * speedMult;
+
+    // Auto-throttle (always on unless braking hard and nearly stopped)
+    if (!brake || spd > 1) {
+        car.vx += Math.cos(car.angle) * accel;
+        car.vy += Math.sin(car.angle) * accel;
+    }
+    if (brake) {
+        car.vx -= Math.cos(car.angle) * BRAKE_FORCE;
+        car.vy -= Math.sin(car.angle) * BRAKE_FORCE;
+    }
+
+    // Nitro effects — particles & sound
+    if (useNitro) {
+        if (car.nitroSfxCooldown <= 0) {
+            playSfxThrottled('nitro', 300);
+            car.nitroSfxCooldown = 18;
+        }
+        // 1-2 small particles instead of 3 large ones
+        let nCount = Math.random() < 0.5 ? 1 : 2;
+        for (let i = 0; i < nCount; i++) {
+            particles.push(mkParticle(
+                car.x - Math.cos(car.angle) * 22,
+                car.y - Math.sin(car.angle) * 22,
+                -Math.cos(car.angle)*2 + (Math.random()-.5)*1,
+                -Math.sin(car.angle)*2 + (Math.random()-.5)*1,
+                ['#ff4400','#ff8800','#ffcc00'][Math.random()*3|0],
+                4 + Math.random()*5, 0.06
+            ));
+        }
+    }
+    if (car.nitroSfxCooldown > 0) car.nitroSfxCooldown--;
+
+    let fric = car.handbrake ? HANDBRAKE_FRICTION : FRICTION;
+    car.vx *= fric;
+    car.vy *= fric;
+
+    spd = Math.hypot(car.vx, car.vy);
+    if (spd > maxSpd) { car.vx = car.vx/spd*maxSpd; car.vy = car.vy/spd*maxSpd; }
+
+    // Drift FX — handbrake
+    if (car.handbrake && spd > 3) {
+        car.drifting = true;
+        addSkid(car);
+        particles.push(mkParticle(
+            car.x - Math.cos(car.angle)*18, car.y - Math.sin(car.angle)*18,
+            (Math.random()-.5)*1.5, (Math.random()-.5)*1.5, '#999', 8+Math.random()*6, 0.03
+        ));
+        if (car.driftSfxCooldown <= 0) {
+            playSfxThrottled('drift', 120);
+            car.driftSfxCooldown = 8;
+        }
+    }
+    // Sharp-turn skid marks (after turning for > 8 frames at speed)
+    else if (car.turnTimer > 8 && spd > 2.5) {
+        car.drifting = true;
+        addSkid(car);
+        // Light smoke on sustained sharp turns
+        if (car.turnTimer % 3 === 0) {
+            particles.push(mkParticle(
+                car.x - Math.cos(car.angle)*16, car.y - Math.sin(car.angle)*16,
+                (Math.random()-.5)*0.8, (Math.random()-.5)*0.8, '#aaa', 5+Math.random()*4, 0.04
+            ));
+        }
+        if (car.driftSfxCooldown <= 0) {
+            playSfxThrottled('drift', 200);
+            car.driftSfxCooldown = 12;
+        }
+    } else {
+        car.drifting = false;
+    }
+    if (car.driftSfxCooldown > 0) car.driftSfxCooldown--;
+
+    car.speed = spd;
+}
+
+// ================================================================
+//  UPDATE — AI
+// ================================================================
+function updateAI(car, dt) {
+    if (!car.alive) return;
+    car.aiTimer -= dt;
+    let spd = Math.hypot(car.vx, car.vy);
+
+    if (car.aiTimer <= 0) {
+        car.aiTimer = 1 + Math.random() * 2;
+        car.aiState = car.health < 25 ? 'flee' : (Math.random() < 0.7 ? 'chase' : 'roam');
+        if (car.aiState === 'chase') {
+            let best = null, bestD = Infinity;
+            for (let o of cars) {
+                if (o === car || !o.alive) continue;
+                let d = Math.hypot(o.x - car.x, o.y - car.y);
+                if (o.playerIdx >= 0) d *= 0.55; // prefer humans
+                if (d < bestD) { bestD = d; best = o; }
+            }
+            car.aiTarget = best;
+        }
+    }
+
+    let targetAng = car.angle;
+    let targetDist = Infinity;
+    if (car.aiState === 'chase' && car.aiTarget?.alive) {
+        targetAng = Math.atan2(car.aiTarget.y - car.y, car.aiTarget.x - car.x);
+        targetDist = Math.hypot(car.aiTarget.x - car.x, car.aiTarget.y - car.y);
+    } else if (car.aiState === 'flee') {
+        let best = null, bestD = Infinity;
+        for (let o of cars) { if (o===car||!o.alive) continue; let d=Math.hypot(o.x-car.x,o.y-car.y); if(d<bestD){bestD=d;best=o;}}
+        if (best) targetAng = Math.atan2(car.y - best.y, car.x - best.x);
+    } else {
+        if (Math.random() < 0.02) car.aiSteerDir = (Math.random()-.5)*0.06;
+        targetAng = car.angle + car.aiSteerDir;
+    }
+
+    // Wall / obstacle avoid
+    const wm = 160;
+    let nearWall = false;
+    if (car.x < wm) { targetAng = 0; if (car.x < 120) nearWall = true; }
+    if (car.x > ARENA_W - wm) { targetAng = Math.PI; if (car.x > ARENA_W - 120) nearWall = true; }
+    if (car.y < wm) { targetAng = Math.PI/2; if (car.y < 120) nearWall = true; }
+    if (car.y > ARENA_H - wm) { targetAng = -Math.PI/2; if (car.y > ARENA_H - 120) nearWall = true; }
+    let nearObs = false;
+    for (let obs of obstacles) {
+        let obsDist = Math.hypot(obs.x-car.x, obs.y-car.y);
+        if (obsDist < obs.r + 80) targetAng = Math.atan2(car.y-obs.y, car.x-obs.x);
+        if (obsDist < obs.r + 50) nearObs = true;
+    }
+
+    let diff = targetAng - car.angle;
+    while (diff > Math.PI) diff -= Math.PI*2;
+    while (diff < -Math.PI) diff += Math.PI*2;
+    if (diff > 0.05) car.angle += TURN_SPEED*0.8;
+    else if (diff < -0.05) car.angle -= TURN_SPEED*0.8;
+
+    // Track AI turning for skid marks
+    let aiAngleDelta = car.angle - car.prevAngle;
+    while (aiAngleDelta > Math.PI) aiAngleDelta -= Math.PI*2;
+    while (aiAngleDelta < -Math.PI) aiAngleDelta += Math.PI*2;
+    if (Math.abs(aiAngleDelta) > 0.01) car.turnTimer++;
+    else car.turnTimer = Math.max(0, car.turnTimer - 2);
+    car.prevAngle = car.angle;
+
+    // --- AI Nitro usage (cooldown-based) ---
+    // AI activates nitro when chasing, close to target, and nitro is ready
+    if (car.aiState === 'chase' && car.aiTarget?.alive && targetDist < 400
+        && car.nitro >= NITRO_MAX && car.nitroCooldown <= 0 && !car.nitroActive) {
+        car.nitroActive = true;
+        car.nitroBurnTimer = 120;
+    }
+
+    // AI nitro burn timer
+    if (car.nitroActive) {
+        car.nitroBurnTimer--;
+        if (car.nitroBurnTimer <= 0) {
+            car.nitroActive = false;
+            car.nitroCooldown = 480;
+            car.nitro = 0;
+        }
+    }
+
+    // AI cooldown tick
+    if (car.nitroCooldown > 0) {
+        car.nitroCooldown--;
+        if (car.nitroCooldown <= 0) {
+            car.nitro = NITRO_MAX;
+        }
+    }
+
+    let aiUseNitro = car.nitroActive;
+
+    // --- AI Power-up speed boost ---
+    let speedMult = car.activePowerUp === 'speed' ? 1.35 : 1;
+
+    let accel = (aiUseNitro ? NITRO_ACCEL : AUTO_ACCEL * 0.82) * speedMult;
+    let cap = (aiUseNitro ? NITRO_MAX_SPEED : MAX_SPEED * 0.82) * speedMult;
+
+    // Auto accel
+    car.vx += Math.cos(car.angle) * accel;
+    car.vy += Math.sin(car.angle) * accel;
+
+    // --- AI Braking ---
+    // Brake near walls
+    if (nearWall && spd > 2) {
+        car.vx *= FRICTION * 0.9;
+        car.vy *= FRICTION * 0.9;
+    }
+    // Brake near obstacles
+    if (nearObs && spd > 2) {
+        car.vx *= 0.92;
+        car.vy *= 0.92;
+    }
+    // Brake when overshooting target (target is behind the car)
+    if (car.aiState === 'chase' && car.aiTarget?.alive && spd > 2) {
+        let dirToTargetX = car.aiTarget.x - car.x;
+        let dirToTargetY = car.aiTarget.y - car.y;
+        let dotProduct = car.vx * dirToTargetX + car.vy * dirToTargetY;
+        if (dotProduct < 0) {
+            car.vx *= 0.95;
+            car.vy *= 0.95;
+        }
+    }
+
+    // --- AI Nitro effects ---
+    if (aiUseNitro) {
+        if (car.nitroSfxCooldown <= 0) {
+            playSfxThrottled('nitro', 300);
+            car.nitroSfxCooldown = 18;
+        }
+        // 1-2 small nitro particles (same as player)
+        let nCount = Math.random() < 0.5 ? 1 : 2;
+        for (let i = 0; i < nCount; i++) {
+            particles.push(mkParticle(
+                car.x - Math.cos(car.angle) * 22,
+                car.y - Math.sin(car.angle) * 22,
+                -Math.cos(car.angle)*2 + (Math.random()-.5)*1,
+                -Math.sin(car.angle)*2 + (Math.random()-.5)*1,
+                ['#ff4400','#ff8800','#ffcc00'][Math.random()*3|0],
+                4 + Math.random()*5, 0.06
+            ));
+        }
+    }
+    if (car.nitroSfxCooldown > 0) car.nitroSfxCooldown--;
+
+    car.vx *= FRICTION; car.vy *= FRICTION;
+    spd = Math.hypot(car.vx, car.vy);
+    if (spd > cap) { car.vx = car.vx/spd*cap; car.vy = car.vy/spd*cap; }
+    car.speed = spd;
+
+    // AI sharp-turn skid marks
+    if (car.turnTimer > 8 && spd > 2.5) {
+        addSkid(car);
+        if (car.turnTimer % 4 === 0) {
+            particles.push(mkParticle(
+                car.x - Math.cos(car.angle)*16, car.y - Math.sin(car.angle)*16,
+                (Math.random()-.5)*0.6, (Math.random()-.5)*0.6, '#aaa', 4+Math.random()*3, 0.04
+            ));
+        }
+    } else if (Math.abs(diff) > 0.8 && spd > 3) {
+        addSkid(car);
+    }
+}
+
+// ================================================================
+//  MOVEMENT & COLLISIONS
+// ================================================================
+function moveCar(car) {
+    if (!car.alive) return;
+    if (car.spinTimer > 0) { car.spinTimer--; car.angle += 0.15; }
+    car.x += car.vx; car.y += car.vy;
+
+    const m = 60;
+    if (car.x < m) { car.x = m; car.vx *= -0.5; }
+    if (car.x > ARENA_W-m) { car.x = ARENA_W-m; car.vx *= -0.5; }
+    if (car.y < m) { car.y = m; car.vy *= -0.5; }
+    if (car.y > ARENA_H-m) { car.y = ARENA_H-m; car.vy *= -0.5; }
+
+    for (let obs of obstacles) {
+        let dx = car.x - obs.x, dy = car.y - obs.y;
+        let dist = Math.hypot(dx, dy), minD = obs.r + 20;
+        if (dist < minD && dist > 0) {
+            let nx = dx/dist, ny = dy/dist;
+            car.x = obs.x + nx*minD; car.y = obs.y + ny*minD;
+            let dot = car.vx*nx + car.vy*ny;
+            car.vx -= 1.5*dot*nx; car.vy -= 1.5*dot*ny;
+            car.vx *= 0.6; car.vy *= 0.6;
+            if (Math.abs(dot) > 2) {
+                car.health -= Math.abs(dot)*2;
+                spawnSparks(car.x - nx*20, car.y - ny*20, 5);
+                playSfxThrottled('bump', 80);
+            }
+        }
+    }
+    if (car.damageCooldown > 0) car.damageCooldown--;
+    if (car.invincible > 0) car.invincible--;
+}
+
+function checkCollisions() {
+    for (let i = 0; i < cars.length; i++) {
+        for (let j = i+1; j < cars.length; j++) {
+            let a = cars[i], b = cars[j];
+            if (!a.alive || !b.alive) continue;
+            let dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
+            if (dist < 35 && dist > 0) {
+                let nx = dx/dist, ny = dy/dist, overlap = 35-dist;
+                a.x -= nx*overlap*.5; a.y -= ny*overlap*.5;
+                b.x += nx*overlap*.5; b.y += ny*overlap*.5;
+                let rvx = a.vx-b.vx, rvy = a.vy-b.vy;
+                let impact = Math.abs(rvx*nx + rvy*ny);
+                let dot = rvx*nx + rvy*ny;
+                a.vx -= dot*nx*.5; a.vy -= dot*ny*.5;
+                b.vx += dot*nx*.5; b.vy += dot*ny*.5;
+
+                if (impact > 1.5) {
+                    let dmg = impact * COLLISION_DMG * (2+Math.random());
+                    let aS = Math.hypot(a.vx,a.vy), bS = Math.hypot(b.vx,b.vy);
+                    let dB = dmg*(aS/(aS+bS+.1)) * (a.activePowerUp === 'damage' ? 2 : 1);
+                    let dA = dmg*(bS/(aS+bS+.1)) * (b.activePowerUp === 'damage' ? 2 : 1);
+
+                    if (a.damageCooldown<=0 && a.invincible<=0) {
+                        let finalDA = a.activePowerUp === 'shield' ? dA * 0.3 : dA;
+                        a.health -= finalDA; a.lastHitBy = b; a.damageCooldown = 10;
+                    }
+                    if (b.damageCooldown<=0 && b.invincible<=0) {
+                        let finalDB = b.activePowerUp === 'shield' ? dB * 0.3 : dB;
+                        b.health -= finalDB; b.lastHitBy = a; b.damageCooldown = 10;
+                    }
+
+                    // Track hits & damage for player
+                    if (a.playerIdx === 0) { a.hits++; a.damageDealt += dB; }
+                    if (b.playerIdx === 0) { b.hits++; b.damageDealt += dA; }
+
+                    if (impact > 5) { if (dA > dB) a.spinTimer = 15; else b.spinTimer = 15; }
+
+                    let cx = (a.x+b.x)/2, cy = (a.y+b.y)/2;
+                    spawnSparks(cx, cy, impact*2|0);
+                    spawnSmoke(cx, cy, impact|0);
+
+                    // Sound
+                    if (impact > 4) playSfxThrottled('hit', 60);
+                    else playSfxThrottled('bump', 60);
+
+                    // Debris on hard hits
+                    if (impact > 4) {
+                        for (let k = 0; k < 3; k++) {
+                            debris.push({
+                                x: cx, y: cy,
+                                vx: (Math.random()-.5)*5, vy: (Math.random()-.5)*5,
+                                angle: Math.random()*Math.PI*2, spin: (Math.random()-.5)*.2,
+                                size: 3+Math.random()*5,
+                                color: Math.random()<.5 ? a.color : b.color,
+                                life: 60+Math.random()*60
+                            });
+                        }
+                    }
+
+                    // Floating damage text
+                    floatingTexts.push({
+                        x: cx, y: cy - 20, text: `-${Math.round(dmg)}`,
+                        color: '#ff4', alpha: 1, vy: -1.2, life: 40
+                    });
+                }
+                checkDeath(a);
+                checkDeath(b);
+            }
+        }
+    }
+}
+
+function respawnCar(car) {
+    // Pick a random spot away from other cars
+    let bestX, bestY, bestDist = 0;
+    for (let attempt = 0; attempt < 20; attempt++) {
+        let rx = 200 + Math.random() * (ARENA_W - 400);
+        let ry = 200 + Math.random() * (ARENA_H - 400);
+        let minDist = Infinity;
+        for (let c of cars) {
+            if (!c.alive || c === car) continue;
+            let d = Math.hypot(c.x - rx, c.y - ry);
+            if (d < minDist) minDist = d;
+        }
+        // Also avoid obstacles
+        for (let o of obstacles) {
+            let d = Math.hypot(o.x - rx, o.y - ry) - o.r;
+            if (d < minDist) minDist = d;
+        }
+        if (minDist > bestDist) { bestDist = minDist; bestX = rx; bestY = ry; }
+    }
+    car.x = bestX; car.y = bestY;
+    car.vx = 0; car.vy = 0; car.speed = 0;
+    car.angle = Math.random() * Math.PI * 2;
+    car.prevAngle = car.angle;
+    car.health = car.maxHealth;
+    car.alive = true;
+    car.spinTimer = 0;
+    car.turnTimer = 0;
+    car.invincible = 120; // ~2 seconds of invincibility
+    car.nitro = NITRO_MAX;
+    car.nitroCooldown = 0;
+    car.nitroActive = false;
+    car.nitroBurnTimer = 0;
+    car.lastHitBy = null;
+    // Spawn-in flash effect
+    for (let i = 0; i < 15; i++) {
+        let a = (i / 15) * Math.PI * 2;
+        particles.push(mkParticle(
+            car.x + Math.cos(a) * 30, car.y + Math.sin(a) * 30,
+            Math.cos(a) * 2, Math.sin(a) * 2,
+            car.color, 5 + Math.random() * 4, 0.04
+        ));
+    }
+}
+
+function checkDeath(car) {
+    if (car.health <= 0 && car.alive) {
+        car.alive = false; car.health = 0;
+        spawnExplosion(car.x, car.y, car.color);
+        playSfx('explode');
+
+        if (car.lastHitBy) {
+            car.lastHitBy.kills++;
+            // Award score to player for kills
+            if (car.lastHitBy.playerIdx === 0) {
+                score += 500;
+                playSfx('kill');
+                floatingTexts.push({
+                    x: car.x, y: car.y - 30,
+                    text: `+500 DESTROYED ${car.name}!`,
+                    color: car.lastHitBy.color, alpha: 1, vy: -0.8, life: 80
+                });
+            }
+        }
+
+        // Player auto-respawns after 5 seconds
+        if (car.playerIdx === 0) {
+            car.deaths = (car.deaths || 0) + 1;
+            car.respawnTimer = 300; // 5 seconds at 60fps
+        }
+
+        // Game ends when all AI are destroyed
+        let aiAlive = cars.filter(c => c.playerIdx === -1 && c.alive).length;
+        if (aiAlive === 0) {
+            setTimeout(() => endGame(true), 1000);
+        }
+    }
+}
+
+// ================================================================
+//  POWER-UPS
+// ================================================================
+const POWERUP_TYPES = [
+    { type: 'health',  icon: '+',  color: '#44ff44', glow: '#22aa22', label: 'REPAIR',       duration: 0   },
+    { type: 'shield',  icon: 'O',  color: '#44ffff', glow: '#2288aa', label: 'SHIELD',       duration: 480 },
+    { type: 'damage',  icon: '!',  color: '#ff4444', glow: '#aa2222', label: 'DOUBLE DMG',   duration: 420 },
+    { type: 'speed',   icon: '>',  color: '#ffff44', glow: '#aaaa22', label: 'SPEED BOOST',  duration: 360 },
+    { type: 'nitro',   icon: 'N',  color: '#ff8800', glow: '#aa5500', label: 'FULL NITRO',   duration: 0   },
+    { type: 'magnet',  icon: 'M',  color: '#ff66ff', glow: '#aa44aa', label: 'MAGNET',       duration: 420 },
+];
+
+function spawnPowerUp() {
+    let px, py, valid;
+    for (let attempt = 0; attempt < 30; attempt++) {
+        px = 150 + Math.random() * (ARENA_W - 300);
+        py = 150 + Math.random() * (ARENA_H - 300);
+        valid = true;
+        for (let o of obstacles) { if (Math.hypot(o.x-px, o.y-py) < o.r + 40) { valid = false; break; } }
+        if (valid) for (let p of powerUps) { if (Math.hypot(p.x-px, p.y-py) < 80) { valid = false; break; } }
+        if (valid) break;
+    }
+    if (!valid) return;
+    let def = POWERUP_TYPES[Math.random() * POWERUP_TYPES.length | 0];
+    powerUps.push({
+        x: px, y: py, ...def,
+        bobPhase: Math.random() * Math.PI * 2,
+        life: 900 // disappears after 15 seconds
+    });
+}
+
+function updatePowerUps() {
+    // Spawn timer — new power-up every 4-6 seconds, max 5 on field
+    powerUpSpawnTimer--;
+    if (powerUpSpawnTimer <= 0 && powerUps.length < 5) {
+        spawnPowerUp();
+        powerUpSpawnTimer = 240 + Math.random() * 120;
+    }
+
+    // Tick down lifetime
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+        powerUps[i].life--;
+        powerUps[i].bobPhase += 0.06;
+        if (powerUps[i].life <= 0) powerUps.splice(i, 1);
+    }
+
+    // Check pickup by alive cars
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+        let pu = powerUps[i];
+        for (let car of cars) {
+            if (!car.alive) continue;
+            if (Math.hypot(car.x - pu.x, car.y - pu.y) < 30) {
+                applyPowerUp(car, pu);
+                powerUps.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    // Tick active power-ups on cars
+    for (let car of cars) {
+        if (car.powerUpTimer > 0) {
+            car.powerUpTimer--;
+            if (car.powerUpTimer <= 0) car.activePowerUp = null;
+        }
+        // Magnet: pull nearby power-ups toward this car
+        if (car.activePowerUp === 'magnet' && car.alive) {
+            for (let pu of powerUps) {
+                let dx = car.x - pu.x, dy = car.y - pu.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist < 250 && dist > 5) {
+                    pu.x += (dx / dist) * 3;
+                    pu.y += (dy / dist) * 3;
+                }
+            }
+        }
+    }
+}
+
+function applyPowerUp(car, pu) {
+    playSfxThrottled('nitro', 50);
+
+    // Floating label
+    floatingTexts.push({
+        x: car.x, y: car.y - 35,
+        text: pu.label, color: pu.color,
+        alpha: 1, vy: -1, life: 50
+    });
+
+    // Sparkle effect
+    for (let i = 0; i < 10; i++) {
+        let a = (i/10) * Math.PI * 2;
+        particles.push(mkParticle(
+            pu.x + Math.cos(a)*15, pu.y + Math.sin(a)*15,
+            Math.cos(a)*2.5, Math.sin(a)*2.5,
+            pu.color, 4 + Math.random()*3, 0.05
+        ));
+    }
+
+    if (pu.type === 'health') {
+        car.health = Math.min(car.maxHealth, car.health + 40);
+    } else if (pu.type === 'nitro') {
+        car.nitro = NITRO_MAX;
+        car.nitroCooldown = 0;
+        car.nitroActive = false;
+        car.nitroBurnTimer = 0;
+    } else {
+        // Timed power-ups replace any current one
+        car.activePowerUp = pu.type;
+        car.powerUpTimer = pu.duration;
+    }
+}
+
+function drawPowerUps() {
+    for (let pu of powerUps) {
+        let bob = Math.sin(pu.bobPhase) * 4;
+        let py = pu.y + bob;
+        let flashAlpha = pu.life < 120 ? (Math.sin(pu.life * 0.3) * 0.3 + 0.5) : 0.8;
+
+        // Glow
+        ctx.globalAlpha = flashAlpha * 0.3;
+        ctx.fillStyle = pu.glow;
+        ctx.beginPath(); ctx.arc(pu.x, py, 22, 0, Math.PI*2); ctx.fill();
+
+        // Circle
+        ctx.globalAlpha = flashAlpha;
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(pu.x, py, 14, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = pu.color; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(pu.x, py, 14, 0, Math.PI*2); ctx.stroke();
+
+        // Icon
+        ctx.fillStyle = pu.color;
+        ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(pu.icon, pu.x, py + 5);
+
+        ctx.globalAlpha = 1;
+    }
+}
+
+function endGame(playerWon) {
+    gameState = 'gameover';
+    let p = cars[0];
+
+    if (playerWon) playSfx('win'); else playSfx('lose');
+
+    const title = document.getElementById('go-title');
+    if (playerWon) {
+        title.textContent = 'YOU WIN!';
+        title.style.color = '#4f4';
+    } else {
+        title.textContent = 'GAME OVER';
+        title.style.color = '#f44';
+    }
+
+    let mins = Math.floor(gameTime/60);
+    let secs = Math.floor(gameTime%60);
+    document.getElementById('game-over-stats').innerHTML = `
+        <div style="color:${P1_COLOR}">
+            <b>Final Score: ${score}</b><br><br>
+            Kills: ${p.kills}<br>
+            Deaths: ${p.deaths}<br>
+            Hits: ${p.hits}<br>
+            Damage Dealt: ${Math.round(p.damageDealt)}<br>
+            Time Survived: ${mins}:${secs.toString().padStart(2,'0')}
+        </div>
+    `;
+    document.getElementById('game-over-screen').style.display = 'flex';
+}
+
+// ================================================================
+//  PARTICLES / FX
+// ================================================================
+function mkParticle(x,y,vx,vy,color,size,decay) {
+    return {x,y,vx,vy,color,size,alpha:1,decay:decay||0.02};
+}
+function addSkid(car) {
+    let speed = Math.hypot(car.vx, car.vy);
+    let w = car.drifting ? 3.5 : 2; // wider during drift
+    let intensity = Math.min(1, speed / 6); // faster = darker
+    // Left tire
+    let lx = car.x - Math.cos(car.angle + 0.45) * 14;
+    let ly = car.y - Math.sin(car.angle + 0.45) * 14;
+    // Right tire
+    let rx = car.x - Math.cos(car.angle - 0.45) * 14;
+    let ry = car.y - Math.sin(car.angle - 0.45) * 14;
+    // Rear direction for line segment end
+    let bx = Math.cos(car.angle) * 4;
+    let by = Math.sin(car.angle) * 4;
+    skidMarks.push(
+        { x1: lx, y1: ly, x2: lx - bx, y2: ly - by, w: w, alpha: 0.5 * intensity, life: 1800, maxLife: 1800 },
+        { x1: rx, y1: ry, x2: rx - bx, y2: ry - by, w: w, alpha: 0.5 * intensity, life: 1800, maxLife: 1800 }
+    );
+}
+function spawnSparks(x,y,n) {
+    for (let i=0;i<n;i++) particles.push(mkParticle(x,y,(Math.random()-.5)*8,(Math.random()-.5)*8,['#ff0','#fa0','#fff','#ff4'][Math.random()*4|0],2+Math.random()*3,.05));
+}
+function spawnSmoke(x,y,n) {
+    for (let i=0;i<n;i++) particles.push(mkParticle(x+(Math.random()-.5)*10,y+(Math.random()-.5)*10,(Math.random()-.5),(Math.random()-.5),'#666',8+Math.random()*12,.015));
+}
+function spawnExplosion(x,y,color) {
+    for (let i=0;i<40;i++){let a=Math.random()*Math.PI*2,s=2+Math.random()*6;particles.push(mkParticle(x,y,Math.cos(a)*s,Math.sin(a)*s,['#f00','#f80','#ff0','#fff'][Math.random()*4|0],5+Math.random()*10,.02));}
+    for (let i=0;i<20;i++){let a=Math.random()*Math.PI*2,s=1+Math.random()*3;particles.push(mkParticle(x,y,Math.cos(a)*s,Math.sin(a)*s,'#333',12+Math.random()*15,.01));}
+    for (let i=0;i<12;i++) debris.push({x,y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,angle:Math.random()*Math.PI*2,spin:(Math.random()-.5)*.3,size:4+Math.random()*8,color:Math.random()<.5?color:'#444',life:80+Math.random()*80});
+}
+function updateFX() {
+    for (let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.alpha-=p.decay;p.size*=.99;if(p.alpha<=0)particles.splice(i,1);}
+    for (let i = skidMarks.length - 1; i >= 0; i--) {
+        let s = skidMarks[i];
+        s.life--;
+        // Only start fading in the last 30% of life
+        if (s.life < s.maxLife * 0.3) {
+            s.alpha *= 0.995;
+        }
+        if (s.life <= 0 || s.alpha < 0.01) skidMarks.splice(i, 1);
+    }
+    if (skidMarks.length > 5000) skidMarks.splice(0, 1000);
+    for (let i=debris.length-1;i>=0;i--){let d=debris[i];d.x+=d.vx;d.y+=d.vy;d.vx*=.97;d.vy*=.97;d.angle+=d.spin;d.life--;if(d.life<=0)debris.splice(i,1);}
+    for (let i=floatingTexts.length-1;i>=0;i--){let f=floatingTexts[i];f.y+=f.vy;f.alpha-=0.02;f.life--;if(f.life<=0)floatingTexts.splice(i,1);}
+}
+
+// ================================================================
+//  DRAWING
+// ================================================================
+function drawTerrain() {
+    ctx.fillStyle='#4a6e2a';
+    ctx.fillRect(0,0,ARENA_W,ARENA_H);
+    for (let p of grassPatches){ctx.fillStyle=`rgba(60,100,30,${.05+p.shade})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
+    for (let p of dirtPatches){ctx.fillStyle=`rgba(120,100,60,${.3+p.shade})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
+
+    // Central asphalt circle
+    ctx.fillStyle='#3a3a3a';
+    ctx.beginPath();ctx.arc(ARENA_W/2,ARENA_H/2,520,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=2;ctx.setLineDash([20,30]);
+    ctx.beginPath();ctx.arc(ARENA_W/2,ARENA_H/2,320,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(ARENA_W/2,ARENA_H/2,160,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Road spokes
+    ctx.fillStyle='#3a3a3a';
+    for (let i=0;i<4;i++){
+        let a=(i/4)*Math.PI*2+Math.PI/4;
+        ctx.save();ctx.translate(ARENA_W/2,ARENA_H/2);ctx.rotate(a);
+        ctx.fillRect(0,-52,1300,104);
+        ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=2;ctx.setLineDash([15,25]);
+        ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(1300,0);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=3;ctx.setLineDash([40,20]);
+        ctx.beginPath();ctx.moveTo(520,-50);ctx.lineTo(1300,-50);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(520,50);ctx.lineTo(1300,50);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+}
+function drawWalls() {
+    ctx.fillStyle='#222';
+    const sp=60;
+    for (let x=30;x<ARENA_W;x+=sp){drawTire(x,30);drawTire(x,ARENA_H-30);}
+    for (let y=30;y<ARENA_H;y+=sp){drawTire(30,y);drawTire(ARENA_W-30,y);}
+}
+function drawTire(x,y) {
+    ctx.fillStyle='#222';ctx.beginPath();ctx.arc(x,y,18,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#444';ctx.lineWidth=1.5;ctx.stroke();
+}
+function drawObstacles() {
+    for (let o of obstacles){
+        ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.arc(o.x+3,o.y+3,o.r,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=o.color;ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=2;ctx.stroke();
+        ctx.fillStyle='rgba(255,255,255,.12)';ctx.beginPath();ctx.arc(o.x-o.r*.2,o.y-o.r*.2,o.r*.45,0,Math.PI*2);ctx.fill();
+    }
+}
+function drawSkidMarks() {
+    ctx.lineCap = 'round';
+    for (let s of skidMarks) {
+        ctx.globalAlpha = s.alpha * 0.6;
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = s.w;
+        ctx.beginPath();
+        ctx.moveTo(s.x1, s.y1);
+        ctx.lineTo(s.x2, s.y2);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+}
+function drawCar(car) {
+    if (!car.alive) return;
+    ctx.save();
+    ctx.translate(car.x,car.y);ctx.rotate(car.angle);
+
+    // Power-up glow ring
+    if (car.activePowerUp) {
+        let puCols = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
+        let glowCol = puCols[car.activePowerUp] || '#fff';
+        ctx.globalAlpha = 0.25 + Math.sin(performance.now()*0.008)*0.15;
+        ctx.strokeStyle = glowCol; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI*2); ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(-CAR_W/2+3,-CAR_H/2+3,CAR_W,CAR_H);
+
+    let col = car.color;
+    if (car.invincible>0 && (car.invincible/3|0)%2) col='#fff';
+
+    // Body
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.roundRect(-CAR_W/2,-CAR_H/2,CAR_W,CAR_H,4);ctx.fill();
+    // Windshield
+    ctx.fillStyle='rgba(100,180,255,.55)';ctx.fillRect(CAR_W/2-14,-CAR_H/2+3,8,CAR_H-6);
+    // Rear
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(-CAR_W/2,-CAR_H/2+2,8,CAR_H-4);
+    // Roof stripe
+    ctx.fillStyle='rgba(255,255,255,.22)';ctx.fillRect(-5,-2,10,4);
+    // Headlights
+    ctx.fillStyle='#ffa';ctx.fillRect(CAR_W/2-3,-CAR_H/2+2,3,4);ctx.fillRect(CAR_W/2-3,CAR_H/2-6,3,4);
+    // Tail lights
+    ctx.fillStyle='#f00';ctx.fillRect(-CAR_W/2,-CAR_H/2+2,3,4);ctx.fillRect(-CAR_W/2,CAR_H/2-6,3,4);
+
+    // Player badge
+    if (car.playerIdx === 0) {
+        ctx.fillStyle='rgba(255,255,255,.35)';
+        ctx.font='bold 10px Arial';ctx.textAlign='center';
+        ctx.fillText('P1', 0, 4);
+    } else {
+        // AI roof marker — diamond shape
+        ctx.fillStyle='rgba(255,255,255,.45)';
+        ctx.beginPath();
+        ctx.moveTo(0, -4); ctx.lineTo(4, 0); ctx.lineTo(0, 4); ctx.lineTo(-4, 0);
+        ctx.closePath(); ctx.fill();
+    }
+
+    // AI body variation — spoiler or wider bumper
+    if (car.playerIdx < 0) {
+        let carIdx = cars.indexOf(car);
+        if (carIdx % 2 === 0) {
+            // Spoiler on rear
+            ctx.fillStyle='rgba(0,0,0,.5)';
+            ctx.fillRect(-CAR_W/2 - 4, -CAR_H/2 + 2, 4, CAR_H - 4);
+            ctx.fillStyle=col;
+            ctx.fillRect(-CAR_W/2 - 3, -CAR_H/2 + 3, 3, CAR_H - 6);
+        } else {
+            // Wider front bumper
+            ctx.fillStyle='rgba(0,0,0,.4)';
+            ctx.fillRect(CAR_W/2, -CAR_H/2 - 2, 3, CAR_H + 4);
+            ctx.fillStyle=col;
+            ctx.fillRect(CAR_W/2, -CAR_H/2 - 1, 2, CAR_H + 2);
+        }
+    }
+
+    // Damage cracks
+    if (car.health<60){ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1;for(let i=0;i<((100-car.health)/15|0);i++){let sx=(Math.random()-.5)*CAR_W*.8,sy=(Math.random()-.5)*CAR_H*.8;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+(Math.random()-.5)*12,sy+(Math.random()-.5)*12);ctx.stroke();}}
+
+    // Smoke
+    if (car.health<40&&Math.random()<.3) particles.push(mkParticle(car.x+(Math.random()-.5)*10,car.y+(Math.random()-.5)*10,(Math.random()-.5)*.5,-Math.random()*.5,car.health<20?'#333':'#888',5+Math.random()*8,.02));
+
+    ctx.restore();
+
+    // Name tag (player only) + health bar (all cars)
+    if (car.playerIdx === 0) {
+        ctx.fillStyle='rgba(0,0,0,.5)';ctx.font='bold 10px Arial';ctx.textAlign='center';
+        let nw=ctx.measureText(car.name).width;
+        ctx.fillRect(car.x-nw/2-3,car.y-26,nw+6,14);
+        ctx.fillStyle= P1_COLOR;
+        ctx.fillText(car.name,car.x,car.y-15);
+    }
+    let bw=32,bh=3,bx=car.x-bw/2,by=car.y-31;
+    ctx.fillStyle='#333';ctx.fillRect(bx,by,bw,bh);
+    let hp=car.health/car.maxHealth;
+    ctx.fillStyle=hp>.5?'#4f4':hp>.25?'#ff4':'#f44';
+    ctx.fillRect(bx,by,bw*hp,bh);
+}
+function drawDebris() {
+    for (let d of debris){ctx.save();ctx.translate(d.x,d.y);ctx.rotate(d.angle);ctx.globalAlpha=Math.min(1,d.life/30);ctx.fillStyle=d.color;ctx.fillRect(-d.size/2,-d.size/2,d.size,d.size);ctx.globalAlpha=1;ctx.restore();}
+}
+function drawParticles() {
+    for (let p of particles){ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
+}
+function drawFloatingTexts() {
+    for (let f of floatingTexts){ctx.globalAlpha=f.alpha;ctx.fillStyle=f.color;ctx.font='bold 14px Arial';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y);ctx.globalAlpha=1;}
+}
+
+// ================================================================
+//  HUD (drawn on-canvas, full-screen single viewport)
+// ================================================================
+function drawHUD(car, vw, vh) {
+    ctx.save();
+
+    const pad = 14;
+    const accent = P1_COLOR;
+
+    // --- Top-left: Controls reminder ---
+    let clx = pad, cly = pad;
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.fillRect(clx, cly, 148, 90);
+    ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=1;
+    ctx.strokeRect(clx, cly, 148, 90);
+    ctx.fillStyle='#777'; ctx.font='10px Arial'; ctx.textAlign='left';
+    ctx.fillText('A/D or \u2190/\u2192  Steer', clx+8, cly+14);
+    ctx.fillText('S or \u2193        Brake', clx+8, cly+28);
+    ctx.fillText('W or \u2191        Nitro', clx+8, cly+42);
+    ctx.fillText('Space         Handbrake', clx+8, cly+56);
+    ctx.fillText('R             Reset', clx+8, cly+70);
+    ctx.fillText('ESC           Pause', clx+8, cly+84);
+
+    // --- Top-right: Stats panel (score, kills, deaths, AI left, timer) ---
+    let trw = 190, trh = 112;
+    let trx = vw - pad - trw, tr_y = pad;
+    ctx.fillStyle='rgba(0,0,0,.65)';
+    ctx.fillRect(trx, tr_y, trw, trh);
+    ctx.strokeStyle=accent; ctx.lineWidth=1;
+    ctx.strokeRect(trx, tr_y, trw, trh);
+
+    ctx.fillStyle='#ff4'; ctx.font='bold 18px Courier New'; ctx.textAlign='left';
+    ctx.fillText(`SCORE: ${score}`, trx+10, tr_y+22);
+
+    let alive = cars.filter(c=>c.alive && c.playerIdx === -1).length;
+    ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
+    ctx.fillText('KILLS ', trx+10, tr_y+44);
+    ctx.fillStyle='#fff'; ctx.fillText(car.kills, trx+90, tr_y+44);
+
+    ctx.fillStyle='#aaa';
+    ctx.fillText('DEATHS', trx+10, tr_y+60);
+    ctx.fillStyle='#fff'; ctx.fillText(car.deaths, trx+90, tr_y+60);
+
+    ctx.fillStyle='#aaa';
+    ctx.fillText('AI LEFT', trx+10, tr_y+76);
+    ctx.fillStyle = alive > 0 ? '#f84' : '#4f4';
+    ctx.fillText(`${alive}/${NUM_AI}`, trx+90, tr_y+76);
+
+    let mins = Math.floor(gameTime/60), secs = Math.floor(gameTime%60);
+    ctx.fillStyle='#aaa';
+    ctx.fillText('TIME  ', trx+10, tr_y+96);
+    ctx.fillStyle='#fff';
+    ctx.fillText(`${mins}:${secs.toString().padStart(2,'0')}`, trx+90, tr_y+96);
+
+    // --- Bottom-left: Speed + Nitro ---
+    let blx = pad, bly = vh - pad - 70;
+    ctx.fillStyle='rgba(0,0,0,.65)';
+    ctx.fillRect(blx, bly, 170, 70);
+    ctx.strokeStyle=accent; ctx.lineWidth=1;
+    ctx.strokeRect(blx, bly, 170, 70);
+
+    let speed = Math.round(car.speed * 20);
+    ctx.fillStyle='#4ff'; ctx.font='bold 28px Courier New'; ctx.textAlign='left';
+    ctx.fillText(speed, blx+10, bly+30);
+    ctx.fillStyle='#aaa'; ctx.font='13px Courier New';
+    ctx.fillText('KMH', blx+90, bly+30);
+
+    // Nitro bar (cooldown-based)
+    ctx.fillStyle='#222'; ctx.fillRect(blx+10, bly+40, 150, 10);
+    let nitroLabel, nitroBarW, nitroCol1, nitroCol2;
+    if (car.nitroActive) {
+        // ACTIVE: bar drains with burn timer
+        nitroBarW = 150 * (car.nitroBurnTimer / 120);
+        nitroCol1 = '#ff8800'; nitroCol2 = '#ffcc00';
+        nitroLabel = 'BURN ' + Math.ceil(car.nitroBurnTimer / 60) + 's';
+    } else if (car.nitroCooldown > 0) {
+        // COOLDOWN: bar fills as cooldown progresses
+        nitroBarW = 150 * (1 - car.nitroCooldown / 480);
+        nitroCol1 = '#555'; nitroCol2 = '#777';
+        nitroLabel = 'CHARGING ' + Math.ceil(car.nitroCooldown / 60) + 's';
+    } else {
+        // READY: full bar
+        nitroBarW = 150;
+        nitroCol1 = '#00ccff'; nitroCol2 = '#00ff88';
+        nitroLabel = 'READY';
+    }
+    let nitroGrad = ctx.createLinearGradient(blx+10, 0, blx+160, 0);
+    nitroGrad.addColorStop(0, nitroCol1); nitroGrad.addColorStop(1, nitroCol2);
+    ctx.fillStyle = nitroGrad;
+    ctx.fillRect(blx+10, bly+40, nitroBarW, 10);
+    ctx.fillStyle='#aaa'; ctx.font='9px Arial'; ctx.textAlign='center';
+    ctx.fillText(nitroLabel, blx+85, bly+63);
+
+    // --- Bottom-center: Health bar ---
+    let hbw = 260, hbh = 20;
+    let hbx = vw/2 - hbw/2, hby = vh - pad - 28;
+    ctx.fillStyle='rgba(0,0,0,.65)';
+    ctx.fillRect(hbx-4, hby-4, hbw+8, hbh+8);
+    ctx.fillStyle='#333'; ctx.fillRect(hbx, hby, hbw, hbh);
+    let hp = Math.max(0, car.health) / car.maxHealth;
+    let hpColor = hp > .5 ? '#4f4' : hp > .25 ? '#ff4' : '#f44';
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(hbx, hby, hbw * hp, hbh);
+    ctx.strokeStyle = hpColor; ctx.lineWidth = 1;
+    ctx.strokeRect(hbx, hby, hbw, hbh);
+    ctx.fillStyle='#fff'; ctx.font='bold 12px Arial'; ctx.textAlign='center';
+    ctx.fillText(`HP: ${Math.max(0,Math.round(car.health))}%`, hbx+hbw/2, hby+15);
+
+    // --- Active power-up indicator (above health bar) ---
+    if (car.alive && car.activePowerUp) {
+        let puLabel = car.activePowerUp.toUpperCase();
+        let puTime = Math.ceil(car.powerUpTimer / 60);
+        let puColors = { shield: '#44ffff', damage: '#ff4444', speed: '#ffff44', magnet: '#ff66ff' };
+        let puCol = puColors[car.activePowerUp] || '#fff';
+        ctx.fillStyle='rgba(0,0,0,.6)';
+        ctx.fillRect(vw/2-70, hby-30, 140, 22);
+        ctx.fillStyle=puCol; ctx.font='bold 13px Courier New'; ctx.textAlign='center';
+        ctx.fillText(`${puLabel} ${puTime}s`, vw/2, hby-14);
+    }
+
+    // --- If dead — show respawn countdown ---
+    if (!car.alive) {
+        ctx.fillStyle='rgba(0,0,0,.55)';
+        ctx.fillRect(0, 0, vw, vh);
+        ctx.fillStyle='#f44'; ctx.font='bold 48px Arial'; ctx.textAlign='center';
+        ctx.fillText('WRECKED!', vw/2, vh/2 - 30);
+        let secLeft = Math.ceil(car.respawnTimer / 60);
+        ctx.fillStyle='#fff'; ctx.font='bold 26px Arial';
+        ctx.fillText(`Respawn in ${secLeft}...`, vw/2, vh/2 + 20);
+    }
+
+    // --- Minimap (bottom-right corner) ---
+    let mmS = 140, mmx = vw-pad-mmS, mmy = vh-pad-mmS;
+    ctx.fillStyle='rgba(20,30,10,.8)';
+    ctx.fillRect(mmx, mmy, mmS, mmS);
+    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(mmx,mmy,mmS,mmS);
+    // Roads on minimap
+    ctx.fillStyle='#333';
+    let mcx=mmx+mmS/2, mcy=mmy+mmS/2;
+    ctx.beginPath();ctx.arc(mcx,mcy,mmS*520/ARENA_W,0,Math.PI*2);ctx.fill();
+    // Power-ups on minimap
+    for (let pu of powerUps) {
+        let mx = mmx + (pu.x/ARENA_W)*mmS;
+        let my = mmy + (pu.y/ARENA_H)*mmS;
+        ctx.fillStyle = pu.color;
+        ctx.fillRect(mx-2, my-2, 4, 4);
+    }
+    // Cars on minimap
+    for (let c of cars) {
+        if (!c.alive) continue;
+        let mx = mmx + (c.x/ARENA_W)*mmS;
+        let my = mmy + (c.y/ARENA_H)*mmS;
+        ctx.fillStyle = c === car ? '#fff' : '#f44';
+        let sz = c === car ? 5 : 3;
+        ctx.fillRect(mx-sz/2, my-sz/2, sz, sz);
+    }
+    // Camera indicator
+    ctx.strokeStyle = accent; ctx.lineWidth = 1;
+    let camRx = mmx + ((car.x - vw/2) / ARENA_W) * mmS;
+    let camRy = mmy + ((car.y - vh/2) / ARENA_H) * mmS;
+    let camRw = (vw / ARENA_W) * mmS;
+    let camRh = (vh / ARENA_H) * mmS;
+    ctx.strokeRect(camRx, camRy, camRw, camRh);
+
+    ctx.restore();
+}
+
+// ================================================================
+//  RENDER WORLD FROM A CAMERA
+// ================================================================
+function renderWorld(camX, camY) {
+    drawTerrain();
+    drawSkidMarks();
+    drawWalls();
+    drawObstacles();
+    drawDebris();
+    // Dead cars
+    for (let c of cars) {
+        if (!c.alive) {
+            ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.angle);
+            ctx.globalAlpha=.45;ctx.fillStyle='#222';
+            ctx.fillRect(-CAR_W/2,-CAR_H/2,CAR_W,CAR_H);
+            // Fire on wreck
+            if (Math.random()<.2) particles.push(mkParticle(c.x+(Math.random()-.5)*20,c.y+(Math.random()-.5)*20,(Math.random()-.5)*.5,-Math.random()*.8,['#f80','#f40','#ff0'][Math.random()*3|0],4+Math.random()*6,.03));
+            ctx.globalAlpha=1;ctx.restore();
+        }
+    }
+    drawPowerUps();
+    for (let c of cars) if (c.alive) drawCar(c);
+    drawParticles();
+    drawFloatingTexts();
+}
+
+// ================================================================
+//  COUNTDOWN
+// ================================================================
+function drawCountdown() {
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 120px Arial'; ctx.textAlign = 'center';
+    let text = countdownVal > 0 ? countdownVal.toString() : 'GO!';
+    if (countdownVal <= 0) ctx.fillStyle = '#4f4';
+    ctx.fillText(text, canvas.width/2, canvas.height/2 + 40);
+}
+
+// ================================================================
+//  START / MAIN LOOP
+// ================================================================
+function showStartScreen() {
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('pause-overlay').style.display = 'none';
+    document.getElementById('start-screen').style.display = 'flex';
+    document.getElementById('ingame-fullscreen-btn').style.display = 'none';
+    paused = false;
+    buildSwatches();
+    gameState = 'menu';
+}
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('pause-overlay').style.display = 'none';
+    document.getElementById('ingame-fullscreen-btn').style.display = 'block';
+
+    buildSwatches();
+    ensureAudio();
+    gameState = 'countdown';
+    countdownVal = 3;
+    countdownTimer = 0;
+    gameTime = 0;
+    score = 0;
+    particles = []; skidMarks = []; debris = []; floatingTexts = [];
+    powerUps = []; powerUpSpawnTimer = 0;
+    generateTerrain();
+    spawnCars();
+}
+
+let lastTime = 0;
+
+function loop(ts) {
+    let dt = Math.min((ts - lastTime) / 1000, 0.05);
+    lastTime = ts;
+
+    // ---- Countdown ----
+    if (gameState === 'countdown') {
+        countdownTimer += dt;
+        if (countdownTimer >= 1) {
+            countdownTimer = 0;
+            if (countdownVal > 0) {
+                playSfx('countdown');
+            }
+            countdownVal--;
+            if (countdownVal < 0) {
+                gameState = 'playing';
+                playSfx('go');
+            } else if (countdownVal === 0) {
+                playSfx('go');
+            }
+        }
+    }
+
+    // ---- Update ----
+    if (gameState === 'playing') {
+        gameTime += dt;
+        // Survival score: +10 per second
+        score += Math.round(dt * 10);
+
+        updatePlayer(cars[0]);
+        for (let i = 1; i < cars.length; i++) updateAI(cars[i], dt);
+        for (let c of cars) moveCar(c);
+        checkCollisions();
+        updatePowerUps();
+        // Respawn timer for dead player
+        for (let c of cars) {
+            if (!c.alive && c.playerIdx === 0 && c.respawnTimer > 0) {
+                c.respawnTimer--;
+                if (c.respawnTimer <= 0) {
+                    respawnCar(c);
+                    playSfxThrottled('go', 100);
+                }
+            }
+        }
+        updateFX();
+    } else if (gameState === 'countdown') {
+        updateFX();
+    }
+
+    // ---- Render ----
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Only render the world when cars exist
+    if (cars.length > 0) {
+        let fullW = canvas.width;
+        let fullH = canvas.height;
+
+        // ---- Single full-screen viewport ----
+        let player = cars[0];
+        let camX = player.x - fullW/2;
+        let camY = player.y - fullH/2;
+
+        ctx.save();
+        ctx.translate(-camX, -camY);
+        renderWorld(camX, camY);
+        ctx.restore();
+
+        // Draw HUD in screen space (0,0 origin, full canvas dimensions)
+        drawHUD(player, fullW, fullH);
+
+        // Countdown overlay
+        if (gameState === 'countdown') drawCountdown();
+    }
+
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

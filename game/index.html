@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Destruction Derby</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="pause-overlay">
+    <h1>PAUSED</h1>
+    <div class="sub">Press ESC or click to resume</div>
+    <button class="resume-btn" onclick="togglePause()">RESUME</button>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
+    <button class="menu-btn" onclick="showStartScreen()">MENU</button>
+</div>
+<button id="ingame-fullscreen-btn" onclick="toggleFullscreen()" style="display:none;">&#x26F6;</button>
+
+<!-- ── Start screen ── -->
+<div id="start-screen" class="overlay">
+    <h1>DESTRUCTION DERBY</h1>
+    <h2>Choose Your Mode</h2>
+    <div class="mode-selector">
+        <button class="mode-btn active-single" id="btn-single" onclick="selectMode('single')">SINGLE PLAYER</button>
+        <button class="mode-btn" id="btn-multi" onclick="selectMode('multi')">MULTIPLAYER</button>
+    </div>
+    <div id="setup-panel">
+        <!-- Dynamically filled by selectMode() -->
+    </div>
+    <button class="start-btn" onclick="startGame()">START</button>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" style="margin-top:12px;">FULLSCREEN</button>
+    <div class="sub-note" id="sub-note-text">Auto-throttle is ON — just steer & smash! Destroy all 11 AI opponents to win.</div>
+</div>
+
+<!-- ── Game over screen ── -->
+<div id="game-over-screen" class="overlay">
+    <h1 id="go-title">GAME OVER</h1>
+    <div id="game-over-stats"></div>
+    <button class="restart-btn" onclick="showStartScreen()">PLAY AGAIN</button>
+</div>
+
+<!-- ── Scripts: loaded in dependency order ── -->
+<script src="js/config.js"></script>
+<script src="js/cars.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/terrain.js"></script>
+<script src="js/car-factory.js"></script>
+<script src="js/powerups.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/input.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
