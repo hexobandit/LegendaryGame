@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Destruction Derby</title>
+<title>Legendary Destruction Derby</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -18,9 +18,13 @@
 </div>
 <button id="ingame-fullscreen-btn" onclick="toggleFullscreen()" style="display:none;">&#x26F6;</button>
 
+<!-- ── Intro screen ── -->
+<div id="intro-screen" class="overlay" style="display:none;">
+    <canvas id="intro-canvas"></canvas>
+</div>
+
 <!-- ── Start screen ── -->
 <div id="start-screen" class="overlay">
-    <h1>DESTRUCTION DERBY</h1>
     <h2>Choose Your Mode</h2>
     <div class="mode-selector">
         <button class="mode-btn active-single" id="btn-single" onclick="selectMode('single')">SINGLE PLAYER</button>
@@ -59,6 +63,7 @@
 <script src="js/renderer.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

@@ -8,6 +8,8 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     z-index: 200; color: #fff;
 }
+#intro-screen { background: #000; z-index: 300; }
+#intro-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
 #start-screen { background: rgba(0,0,0,0.92); overflow-y: auto; }
 #start-screen h1 {
     font-size: 56px; letter-spacing: 4px;

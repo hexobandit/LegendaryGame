@@ -168,5 +168,5 @@ function loop(ts) {
 }
 
 // ── Kick off ──
-selectMode('single');
+initIntro();
 requestAnimationFrame(loop);

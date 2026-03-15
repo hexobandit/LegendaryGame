@@ -397,10 +397,12 @@ function buildMapPicker() {
 
 // ── Start / End / Menu ──
 function showStartScreen() {
+    document.getElementById('intro-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';
     document.getElementById('pause-overlay').style.display = 'none';
     document.getElementById('start-screen').style.display = 'flex';
     document.getElementById('ingame-fullscreen-btn').style.display = 'none';
+    introActive = false;
     paused = false;
     selectMode(gameMode);
     gameState = 'menu';

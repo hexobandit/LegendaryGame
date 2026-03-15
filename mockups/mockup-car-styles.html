@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Car Style Mockups — Destruction Derby</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; }
+h1 {
+    text-align: center; font-size: 36px; letter-spacing: 3px; margin-bottom: 8px;
+    background: linear-gradient(90deg, #ff6eb4, #6eb4ff); -webkit-background-clip: text;
+    background-clip: text; -webkit-text-fill-color: transparent;
+}
+h2 { text-align: center; color: #666; font-size: 14px; margin-bottom: 40px; font-weight: normal; }
+.grid { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; }
+.card {
+    background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px;
+    width: 540px; text-align: center;
+}
+.card h3 { font-size: 18px; margin-bottom: 4px; letter-spacing: 1px; }
+.card .subtitle { color: #888; font-size: 12px; margin-bottom: 14px; }
+.card canvas { border-radius: 8px; background: #0d0d0d; display: block; margin: 0 auto; }
+.card .pros { color: #6d6; font-size: 11px; margin-top: 10px; text-align: left; padding: 0 10px; }
+.card .cons { color: #d66; font-size: 11px; margin-top: 4px; text-align: left; padding: 0 10px; }
+.badge {
+    display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 10px;
+    font-weight: bold; letter-spacing: 1px; margin-bottom: 8px;
+}
+.badge.current { background: #333; color: #aaa; }
+.badge.easy { background: #2a3a2a; color: #6d6; }
+.badge.medium { background: #3a3a2a; color: #dd6; }
+.badge.hard { background: #3a2a2a; color: #d66; }
+</style>
+</head>
+<body>
+<h1>CAR STYLE MOCKUPS</h1>
+<h2>Six visual approaches — all pure canvas, no images needed</h2>
+
+<div class="grid">
+
+<!-- 1. CURRENT -->
+<div class="card">
+    <span class="badge current">CURRENT</span>
+    <h3>A — Flat Rectangles</h3>
+    <div class="subtitle">What we have now. Simple, fast, clear.</div>
+    <canvas id="c1" width="520" height="200"></canvas>
+    <div class="pros">+ Cheapest to render, very readable at small sizes</div>
+    <div class="cons">- Looks basic, all body types are just rectangles</div>
+</div>
+
+<!-- 2. SHAPED BODIES -->
+<div class="card">
+    <span class="badge easy">LOW EFFORT</span>
+    <h3>B — Shaped Bodies</h3>
+    <div class="subtitle">Curved paths instead of rectangles. Wheels visible. Same render cost.</div>
+    <canvas id="c2" width="520" height="200"></canvas>
+    <div class="pros">+ Distinct silhouettes per type, still very fast</div>
+    <div class="cons">- More path code per body style</div>
+</div>
+
+<!-- 3. GRADIENT / METALLIC -->
+<div class="card">
+    <span class="badge medium">MEDIUM EFFORT</span>
+    <h3>C — Gradient &amp; Metallic</h3>
+    <div class="subtitle">Linear gradients for a painted-metal look. Specular highlights.</div>
+    <canvas id="c3" width="520" height="200"></canvas>
+    <div class="pros">+ Rich, premium feel. Great color depth</div>
+    <div class="cons">- Gradient creation per frame (cacheable with offscreen canvas)</div>
+</div>
+
+<!-- 4. OUTLINED / COMIC -->
+<div class="card">
+    <span class="badge easy">LOW EFFORT</span>
+    <h3>D — Bold Outline / Comic</h3>
+    <div class="subtitle">Thick black outlines, flat fills, punchy colors. Comic book vibe.</div>
+    <canvas id="c4" width="520" height="200"></canvas>
+    <div class="pros">+ Very readable at any zoom, strong personality</div>
+    <div class="cons">- Slightly cartoonier tone</div>
+</div>
+
+<!-- 5. PIXEL ART -->
+<div class="card">
+    <span class="badge medium">MEDIUM EFFORT</span>
+    <h3>E — Pixel Art</h3>
+    <div class="subtitle">Chunky retro pixels. Nostalgic arcade feel.</div>
+    <canvas id="c5" width="520" height="200"></canvas>
+    <div class="pros">+ Unique retro aesthetic, great for the genre</div>
+    <div class="cons">- Harder to add new body styles, pixel grids need care</div>
+</div>
+
+<!-- 6. PSEUDO-3D / ISOMETRIC -->
+<div class="card">
+    <span class="badge hard">HIGHER EFFORT</span>
+    <h3>F — Pseudo-3D Shaded</h3>
+    <div class="subtitle">Top-down with height shading, cast shadows, roof bevel. Looks 3D.</div>
+    <canvas id="c6" width="520" height="200"></canvas>
+    <div class="pros">+ Most visually impressive, professional look</div>
+    <div class="cons">- Most complex drawing code, heavier per-frame</div>
+</div>
+
+</div>
+
+<script>
+const COLORS = ['#ff6eb4', '#6eb4ff', '#e03030', '#30c030', '#ff9030'];
+const NAMES = ['Sedan', 'Sport', 'SUV', 'Truck', 'Compact'];
+
+function eachCar(canvasId, drawFn) {
+    const cvs = document.getElementById(canvasId);
+    const ctx = cvs.getContext('2d');
+    const gap = 100;
+    const startX = 60;
+    for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.translate(startX + i * gap, cvs.height / 2);
+        drawFn(ctx, COLORS[i], i);
+        ctx.restore();
+        // Label
+        ctx.fillStyle = '#555';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(NAMES[i], startX + i * gap, cvs.height - 12);
+    }
+}
+
+// ============================================================
+// A — CURRENT (flat rectangles)
+// ============================================================
+eachCar('c1', function(ctx, col, type) {
+    const sizes = [[40,22],[40,22],[40,22],[40,22],[34,18]];
+    const s = 2.2;
+    const cw = sizes[type][0], ch = sizes[type][1];
+    ctx.scale(s, s);
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.fillRect(-cw/2+3, -ch/2+3, cw, ch);
+    // Body
+    ctx.fillStyle = col;
+    ctx.fillRect(-cw/2, -ch/2, cw, ch);
+    // Windshield
+    ctx.fillStyle = 'rgba(100,180,255,.55)';
+    ctx.fillRect(cw/2-14, -ch/2+3, 8, ch-6);
+    // Rear
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.fillRect(-cw/2, -ch/2+2, 8, ch-4);
+    // Headlights
+    ctx.fillStyle = '#ffa';
+    ctx.fillRect(cw/2-3, -ch/2+2, 3, 4);
+    ctx.fillRect(cw/2-3, ch/2-6, 3, 4);
+    // Tail
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(-cw/2, -ch/2+2, 3, 4);
+    ctx.fillRect(-cw/2, ch/2-6, 3, 4);
+    // Roof
+    ctx.fillStyle = 'rgba(255,255,255,.2)';
+    ctx.fillRect(-5, -2, 10, 4);
+});
+
+// ============================================================
+// B — SHAPED BODIES (curved paths + wheels)
+// ============================================================
+eachCar('c2', function(ctx, col, type) {
+    const s = 2.2;
+    ctx.scale(s, s);
+
+    // Wheels (dark circles at corners)
+    ctx.fillStyle = '#222';
+    const wOff = type === 4 ? [[12,7],[12,-7],[-10,7],[-10,-7]] :
+                 type === 3 ? [[16,10],[16,-10],[-14,10],[-14,-10]] :
+                              [[14,9],[14,-9],[-12,9],[-12,-9]];
+    for (let w of wOff) {
+        ctx.beginPath();
+        ctx.ellipse(w[0], w[1], 5, 3.5, 0, 0, Math.PI*2);
+        ctx.fill();
+        // Rim
+        ctx.fillStyle = '#444';
+        ctx.beginPath();
+        ctx.ellipse(w[0], w[1], 3, 2, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#222';
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.beginPath();
+    if (type === 0) { // Sedan
+        ctx.ellipse(2, 2, 20, 10, 0, 0, Math.PI*2);
+    } else if (type === 1) { // Sport
+        ctx.ellipse(2, 2, 22, 9, 0, 0, Math.PI*2);
+    } else if (type === 2) { // SUV
+        ctx.ellipse(3, 3, 20, 12, 0, 0, Math.PI*2);
+    } else if (type === 3) { // Truck
+        ctx.ellipse(3, 3, 22, 12, 0, 0, Math.PI*2);
+    } else { // Compact
+        ctx.ellipse(2, 2, 16, 8, 0, 0, Math.PI*2);
+    }
+    ctx.fill();
+
+    // Body shape
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    if (type === 0) { // Sedan — rounded rect
+        ctx.roundRect(-19, -10, 38, 20, 5);
+    } else if (type === 1) { // Sport — sleek tapered
+        ctx.moveTo(22, 0);
+        ctx.bezierCurveTo(22, -8, 10, -9, -8, -9);
+        ctx.bezierCurveTo(-16, -9, -20, -6, -20, 0);
+        ctx.bezierCurveTo(-20, 6, -16, 9, -8, 9);
+        ctx.bezierCurveTo(10, 9, 22, 8, 22, 0);
+    } else if (type === 2) { // SUV — boxy wide
+        ctx.roundRect(-19, -12, 38, 24, 4);
+    } else if (type === 3) { // Truck — long boxy
+        ctx.roundRect(-22, -11, 44, 22, 3);
+        // Bed divider
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.2)';
+        ctx.fillRect(-8, -11, 2, 22);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.roundRect(-22, -11, 44, 22, 3);
+    } else { // Compact — small oval
+        ctx.ellipse(0, 0, 15, 9, 0, 0, Math.PI*2);
+    }
+    ctx.fill();
+
+    // Windshield
+    ctx.fillStyle = 'rgba(100,200,255,.5)';
+    if (type === 1) {
+        ctx.beginPath();
+        ctx.moveTo(14, -6); ctx.lineTo(18, -3); ctx.lineTo(18, 3); ctx.lineTo(14, 6);
+        ctx.closePath(); ctx.fill();
+    } else if (type === 4) {
+        ctx.beginPath();
+        ctx.arc(6, 0, 5, -1.2, 1.2); ctx.fill();
+    } else {
+        let bw = type === 2 ? 12 : type === 3 ? 11 : 10;
+        ctx.fillRect(8, -bw/2, 6, bw);
+    }
+
+    // Headlights
+    ctx.fillStyle = '#ffa';
+    let hw = type === 2 ? 12 : type === 3 ? 11 : type === 4 ? 8 : 10;
+    let front = type === 1 ? 20 : type === 3 ? 21 : type === 4 ? 14 : 18;
+    ctx.beginPath(); ctx.arc(front, -hw/2+2, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(front, hw/2-2, 2.5, 0, Math.PI*2); ctx.fill();
+
+    // Tail lights
+    ctx.fillStyle = '#f44';
+    let rear = type === 3 ? -21 : type === 4 ? -14 : -18;
+    ctx.beginPath(); ctx.arc(rear, -hw/2+2, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(rear, hw/2-2, 2, 0, Math.PI*2); ctx.fill();
+
+    // Roof highlight
+    ctx.fillStyle = 'rgba(255,255,255,.15)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+});
+
+// ============================================================
+// C — GRADIENT / METALLIC
+// ============================================================
+eachCar('c3', function(ctx, col, type) {
+    const s = 2.2;
+    ctx.scale(s, s);
+    const cw = type === 4 ? 30 : type === 3 ? 44 : 38;
+    const ch = type === 2 ? 24 : type === 4 ? 18 : 20;
+    const r = type === 4 ? 7 : type === 1 ? 6 : 4;
+
+    // Parse color for gradient
+    function lighten(hex, amt) {
+        let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        r = Math.min(255, r + amt); g = Math.min(255, g + amt); b = Math.min(255, b + amt);
+        return `rgb(${r},${g},${b})`;
+    }
+    function darken(hex, amt) { return lighten(hex, -amt); }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.roundRect(-cw/2+3, -ch/2+3, cw, ch, r); ctx.fill();
+
+    // Body gradient (top to bottom = light to dark)
+    let grad = ctx.createLinearGradient(0, -ch/2, 0, ch/2);
+    grad.addColorStop(0, lighten(col, 60));
+    grad.addColorStop(0.35, col);
+    grad.addColorStop(0.65, col);
+    grad.addColorStop(1, darken(col, 50));
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, r); ctx.fill();
+
+    // Edge highlight (top)
+    ctx.strokeStyle = lighten(col, 80);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-cw/2+r, -ch/2);
+    ctx.lineTo(cw/2-r, -ch/2);
+    ctx.stroke();
+
+    // Specular reflection blob
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.beginPath();
+    ctx.ellipse(2, -ch/4, cw*0.3, ch*0.15, -0.1, 0, Math.PI*2);
+    ctx.fill();
+
+    // Windshield with gloss
+    let wGrad = ctx.createLinearGradient(cw/2-14, 0, cw/2-6, 0);
+    wGrad.addColorStop(0, 'rgba(60,140,220,.6)');
+    wGrad.addColorStop(0.5, 'rgba(140,210,255,.7)');
+    wGrad.addColorStop(1, 'rgba(60,140,220,.5)');
+    ctx.fillStyle = wGrad;
+    let ws = type === 1 ? 5 : 3;
+    ctx.fillRect(cw/2-14, -ch/2+ws, 8, ch-ws*2);
+
+    // Windshield reflection line
+    ctx.strokeStyle = 'rgba(255,255,255,.3)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(cw/2-12, -ch/2+ws+1);
+    ctx.lineTo(cw/2-8, ch/2-ws-1);
+    ctx.stroke();
+
+    // Rear darkened
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(-cw/2, -ch/2+2, 7, ch-4);
+
+    // Headlights (glowing)
+    ctx.fillStyle = '#ffa';
+    ctx.shadowColor = '#ffa'; ctx.shadowBlur = 6;
+    ctx.fillRect(cw/2-3, -ch/2+2, 3, 4);
+    ctx.fillRect(cw/2-3, ch/2-6, 3, 4);
+    ctx.shadowBlur = 0;
+
+    // Tail lights (glowing)
+    ctx.fillStyle = '#f44';
+    ctx.shadowColor = '#f44'; ctx.shadowBlur = 5;
+    ctx.fillRect(-cw/2, -ch/2+2, 3, 4);
+    ctx.fillRect(-cw/2, ch/2-6, 3, 4);
+    ctx.shadowBlur = 0;
+
+    // Roof stripe
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.fillRect(-4, -1.5, 8, 3);
+
+    // Body style extras
+    if (type === 1) { // Sport spoiler
+        ctx.fillStyle = darken(col, 40);
+        ctx.fillRect(-cw/2-4, -ch/2+1, 4, ch-2);
+    } else if (type === 3) { // Truck bar
+        ctx.strokeStyle = 'rgba(200,200,200,.6)'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cw/2+1, -ch/2+1); ctx.lineTo(cw/2+3, -ch/2+1);
+        ctx.lineTo(cw/2+3, ch/2-1); ctx.lineTo(cw/2+1, ch/2-1);
+        ctx.stroke();
+    }
+});
+
+// ============================================================
+// D — BOLD OUTLINE / COMIC
+// ============================================================
+eachCar('c4', function(ctx, col, type) {
+    const s = 2.2;
+    ctx.scale(s, s);
+    const cw = type === 4 ? 30 : type === 3 ? 44 : type === 2 ? 38 : 38;
+    const ch = type === 2 ? 24 : type === 4 ? 18 : type === 3 ? 22 : 20;
+    const r = type === 4 ? 8 : type === 1 ? 6 : 4;
+
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    ctx.beginPath(); ctx.roundRect(-cw/2+2, -ch/2+2, cw, ch, r); ctx.fill();
+
+    // Body fill
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, r); ctx.fill();
+
+    // THICK black outline
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, r); ctx.stroke();
+
+    // Windshield with outline
+    ctx.fillStyle = 'rgba(80,170,255,.6)';
+    let ws = type === 1 ? 5 : 3;
+    ctx.fillRect(cw/2-14, -ch/2+ws, 8, ch-ws*2);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(cw/2-14, -ch/2+ws, 8, ch-ws*2);
+
+    // Rear with outline
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(-cw/2+1, -ch/2+2, 7, ch-4);
+
+    // Headlights — bold circles
+    ctx.fillStyle = '#ff0';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cw/2-1, -ch/2+4, 3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cw/2-1, ch/2-4, 3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Tail lights
+    ctx.fillStyle = '#f00';
+    ctx.beginPath(); ctx.arc(-cw/2+1, -ch/2+4, 2.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-cw/2+1, ch/2-4, 2.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Roof stripe (outlined)
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-4, -2, 8, 4);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+    ctx.strokeRect(-4, -2, 8, 4);
+
+    // Speed lines for sport
+    if (type === 1) {
+        ctx.strokeStyle = col; ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.4;
+        for (let i = 0; i < 3; i++) {
+            let y = -6 + i * 6;
+            ctx.beginPath(); ctx.moveTo(-cw/2-8, y); ctx.lineTo(-cw/2-18, y); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Truck bull bar
+    if (type === 3) {
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(cw/2, -ch/2+2, 4, ch-4);
+        ctx.strokeRect(cw/2, -ch/2+2, 4, ch-4);
+    }
+});
+
+// ============================================================
+// E — PIXEL ART
+// ============================================================
+eachCar('c5', function(ctx, col, type) {
+    const s = 2.2;
+    ctx.scale(s, s);
+    const px = 3; // pixel size
+    ctx.imageSmoothingEnabled = false;
+
+    function hexToRgb(hex) {
+        let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        return [r,g,b];
+    }
+    let [cr,cg,cb] = hexToRgb(col);
+    let dark = `rgb(${cr*.6|0},${cg*.6|0},${cb*.6|0})`;
+    let light = `rgb(${Math.min(255,cr+60)},${Math.min(255,cg+60)},${Math.min(255,cb+60)})`;
+
+    // Pixel grids per car type (each row is one horizontal line)
+    // Legend: 0=empty, 1=body, 2=dark, 3=windshield, 4=headlight, 5=taillight, 6=roof, 7=light body
+    const grids = [
+        // Sedan
+        [
+            [0,0,5,1,1,1,1,1,1,3,3,4,0,0],
+            [0,5,2,1,1,7,6,7,1,1,3,3,4,0],
+            [0,5,2,1,1,7,6,7,1,1,3,3,4,0],
+            [0,0,5,1,1,1,1,1,1,3,3,4,0,0],
+        ],
+        // Sport
+        [
+            [0,0,0,1,1,1,1,1,3,3,4,0,0,0],
+            [2,2,1,1,7,7,6,7,1,3,3,4,4,0],
+            [2,2,1,1,7,7,6,7,1,3,3,4,4,0],
+            [0,0,0,1,1,1,1,1,3,3,4,0,0,0],
+        ],
+        // SUV
+        [
+            [0,5,2,1,1,1,1,1,1,3,3,4,0,0],
+            [5,2,2,1,1,7,6,7,1,1,3,3,4,0],
+            [5,2,2,1,1,7,6,7,1,1,3,3,4,0],
+            [0,5,2,1,1,7,6,7,1,1,3,3,4,0],
+            [0,0,5,1,1,1,1,1,1,3,3,4,0,0],
+        ],
+        // Truck
+        [
+            [0,5,2,2,1,1,1,1,1,1,3,3,4,4,4],
+            [5,2,2,1,1,1,7,6,7,1,1,3,3,4,4],
+            [5,2,2,1,1,1,7,6,7,1,1,3,3,4,4],
+            [0,5,2,2,1,1,1,1,1,1,3,3,4,4,4],
+        ],
+        // Compact
+        [
+            [0,0,5,1,1,1,1,3,4,0,0,0,0,0],
+            [0,5,2,1,7,6,1,3,3,4,0,0,0,0],
+            [0,5,2,1,7,6,1,3,3,4,0,0,0,0],
+            [0,0,5,1,1,1,1,3,4,0,0,0,0,0],
+        ],
+    ];
+
+    const colorMap = {
+        0: null,
+        1: col,
+        2: dark,
+        3: 'rgba(80,170,255,.7)',
+        4: '#ffdd44',
+        5: '#cc2222',
+        6: 'rgba(255,255,255,.3)',
+        7: light,
+    };
+
+    let grid = grids[type];
+    let gw = grid[0].length, gh = grid.length;
+    let ox = -(gw * px) / 2, oy = -(gh * px) / 2;
+
+    for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+            let c = colorMap[grid[y][x]];
+            if (!c) continue;
+            ctx.fillStyle = c;
+            ctx.fillRect(ox + x * px, oy + y * px, px, px);
+        }
+    }
+    // Outline
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 0.5;
+    for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+            if (grid[y][x] === 0) continue;
+            // Check neighbors
+            if (x === 0 || grid[y][x-1] === 0) { ctx.beginPath(); ctx.moveTo(ox+x*px, oy+y*px); ctx.lineTo(ox+x*px, oy+(y+1)*px); ctx.stroke(); }
+            if (x === gw-1 || grid[y][x+1] === 0) { ctx.beginPath(); ctx.moveTo(ox+(x+1)*px, oy+y*px); ctx.lineTo(ox+(x+1)*px, oy+(y+1)*px); ctx.stroke(); }
+            if (y === 0 || grid[y-1][x] === 0) { ctx.beginPath(); ctx.moveTo(ox+x*px, oy+y*px); ctx.lineTo(ox+(x+1)*px, oy+y*px); ctx.stroke(); }
+            if (y === gh-1 || grid[y+1][x] === 0) { ctx.beginPath(); ctx.moveTo(ox+x*px, oy+(y+1)*px); ctx.lineTo(ox+(x+1)*px, oy+(y+1)*px); ctx.stroke(); }
+        }
+    }
+});
+
+// ============================================================
+// F — PSEUDO-3D SHADED
+// ============================================================
+eachCar('c6', function(ctx, col, type) {
+    const s = 2.2;
+    ctx.scale(s, s);
+
+    function hexToRgb(hex) {
+        let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        return [r,g,b];
+    }
+    let [cr,cg,cb] = hexToRgb(col);
+    let dark = `rgb(${cr*.5|0},${cg*.5|0},${cb*.5|0})`;
+    let mid = col;
+    let light = `rgb(${Math.min(255,cr+70)},${Math.min(255,cg+70)},${Math.min(255,cb+70)})`;
+
+    const cw = type === 4 ? 30 : type === 3 ? 44 : 38;
+    const ch = type === 2 ? 24 : type === 4 ? 18 : type === 3 ? 22 : 20;
+
+    // Ground shadow (offset, blurred)
+    ctx.fillStyle = 'rgba(0,0,0,.4)';
+    ctx.beginPath(); ctx.ellipse(3, 3, cw/2+2, ch/2+2, 0, 0, Math.PI*2); ctx.fill();
+
+    // Wheels (slightly protruding)
+    const wheelPositions = type === 4 ?
+        [[11,8],[11,-8],[-9,8],[-9,-8]] :
+        type === 3 ?
+        [[16,10],[16,-10],[-14,10],[-14,-10]] :
+        [[14,9],[14,-9],[-12,9],[-12,-9]];
+    for (let w of wheelPositions) {
+        // Tire
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.ellipse(w[0], w[1], 5.5, 4, 0, 0, Math.PI*2); ctx.fill();
+        // Rim
+        ctx.fillStyle = '#555';
+        ctx.beginPath(); ctx.ellipse(w[0], w[1], 3, 2.2, 0, 0, Math.PI*2); ctx.fill();
+        // Rim shine
+        ctx.fillStyle = '#888';
+        ctx.beginPath(); ctx.ellipse(w[0]-0.5, w[1]-0.5, 1.5, 1, 0, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Lower body (darker = sides visible from top-down)
+    let lowerGrad = ctx.createLinearGradient(0, -ch/2-2, 0, ch/2+2);
+    lowerGrad.addColorStop(0, dark);
+    lowerGrad.addColorStop(0.3, mid);
+    lowerGrad.addColorStop(0.7, mid);
+    lowerGrad.addColorStop(1, dark);
+    ctx.fillStyle = lowerGrad;
+    let br = type === 4 ? 7 : type === 1 ? 5 : 3;
+    ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, br); ctx.fill();
+
+    // Upper body / roof (smaller, lighter, raised look)
+    let roofW = cw * 0.7, roofH = ch * 0.55;
+    let roofX = type === 1 ? -2 : type === 3 ? -4 : 0;
+    let roofGrad = ctx.createLinearGradient(0, -roofH/2, 0, roofH/2);
+    roofGrad.addColorStop(0, light);
+    roofGrad.addColorStop(0.5, mid);
+    roofGrad.addColorStop(1, dark);
+    ctx.fillStyle = roofGrad;
+    ctx.beginPath();
+    ctx.roundRect(roofX - roofW/2, -roofH/2, roofW, roofH, type === 4 ? 5 : 3);
+    ctx.fill();
+
+    // Roof edge highlight
+    ctx.strokeStyle = 'rgba(255,255,255,.25)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.roundRect(roofX - roofW/2, -roofH/2, roofW, roofH, type === 4 ? 5 : 3);
+    ctx.stroke();
+
+    // Roof specular
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath(); ctx.ellipse(roofX+1, -1, roofW*0.3, roofH*0.25, -0.15, 0, Math.PI*2); ctx.fill();
+
+    // Windshield (between roof and front)
+    ctx.fillStyle = 'rgba(80,180,255,.5)';
+    let wfx = roofX + roofW/2;
+    ctx.fillRect(wfx, -roofH/2+1, cw/2-wfx-2, roofH-2);
+    // Windshield glare
+    ctx.fillStyle = 'rgba(200,240,255,.2)';
+    ctx.fillRect(wfx+1, -roofH/2+2, 2, roofH-4);
+
+    // Rear window
+    ctx.fillStyle = 'rgba(60,120,180,.4)';
+    let rwx = roofX - roofW/2;
+    ctx.fillRect(-cw/2+2, -roofH/2+1, rwx-(-cw/2+2), roofH-2);
+
+    // Headlights (glowing)
+    ctx.fillStyle = '#ffa';
+    ctx.shadowColor = '#ffa'; ctx.shadowBlur = 4;
+    ctx.beginPath(); ctx.ellipse(cw/2-1, -ch/2+3.5, 2.5, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cw/2-1, ch/2-3.5, 2.5, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Tail lights
+    ctx.fillStyle = '#e33';
+    ctx.shadowColor = '#f44'; ctx.shadowBlur = 3;
+    ctx.beginPath(); ctx.ellipse(-cw/2+1, -ch/2+3.5, 2, 1.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-cw/2+1, ch/2-3.5, 2, 1.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Body style extras
+    if (type === 1) {
+        // Sport: rear spoiler
+        ctx.fillStyle = dark;
+        ctx.fillRect(-cw/2-3, -ch/2+2, 3, ch-4);
+        ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 0.5;
+        ctx.strokeRect(-cw/2-3, -ch/2+2, 3, ch-4);
+    } else if (type === 3) {
+        // Truck: bull bar
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cw/2+1, -ch/2+2); ctx.lineTo(cw/2+3, -ch/2+2);
+        ctx.lineTo(cw/2+3, ch/2-2); ctx.lineTo(cw/2+1, ch/2-2);
+        ctx.stroke();
+    } else if (type === 2) {
+        // SUV: roof rack
+        ctx.strokeStyle = 'rgba(180,180,180,.4)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(roofX-roofW/3, -roofH/2); ctx.lineTo(roofX-roofW/3, roofH/2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(roofX+roofW/3, -roofH/2); ctx.lineTo(roofX+roofW/3, roofH/2); ctx.stroke();
+    }
+
+    // Subtle overall body outline
+    ctx.strokeStyle = 'rgba(0,0,0,.3)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, br); ctx.stroke();
+});
+</script>
+</body>
+</html>
