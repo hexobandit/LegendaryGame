@@ -239,6 +239,13 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', Arial, sans-
     background: linear-gradient(90deg, #ff6eb4, #6eb4ff);
     color: #fff; letter-spacing: 2px;
 }
+.restart-btn:hover { opacity: 0.85; }
+.restart-btn.menu-btn-go {
+    background: rgba(255,255,255,.1);
+    border: 2px solid #666;
+    color: #aaa;
+}
+.restart-btn.menu-btn-go:hover { border-color: #ff6eb4; color: #ff6eb4; opacity: 1; }
 
 /* ── Pause ── */
 #pause-overlay {

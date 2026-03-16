@@ -88,8 +88,9 @@
     <div id="game-over-stats"></div>
     <div id="go-leaderboard"></div>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <button class="restart-btn" onclick="showStartScreen()">PLAY AGAIN</button>
-        <button class="hs-btn" onclick="showHighScoresModal()" style="margin-top:0;">HIGH SCORES</button>
+        <button class="restart-btn" onclick="replayGame()">PLAY AGAIN</button>
+        <button class="restart-btn" onclick="showHighScoresModal()">HIGH SCORES</button>
+        <button class="restart-btn menu-btn-go" onclick="showStartScreen()">MENU</button>
     </div>
 </div>
 
@@ -98,6 +99,12 @@
 <script src="js/modes.js"></script>
 <script src="js/cars.js"></script>
 <script src="js/maps.js"></script>
+<script src="js/maps/arena.js"></script>
+<script src="js/maps/desert.js"></script>
+<script src="js/maps/snow.js"></script>
+<script src="js/maps/parking.js"></script>
+<script src="js/maps/speedway.js"></script>
+<script src="js/maps/kryspa.js"></script>
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/audio.js"></script>

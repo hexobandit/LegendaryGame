@@ -1071,6 +1071,29 @@ function showStartScreen() {
     navigateMenu(2);
 }
 
+function replayGame() {
+    // Replay with exact same settings — skip menu, just restart
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('highscores-modal').style.display = 'none';
+
+    ensureAudio();
+    lastSfx = {};
+    gameState = 'countdown';
+    countdownVal = 3;
+    countdownTimer = 0;
+    gameTime = 0;
+    score = 0;
+    particles = []; skidMarks = []; debris = []; floatingTexts = [];
+    powerUps = []; powerUpSpawnTimer = 0; breakables = [];
+    slomoActive = false; slomoTimer = 0; slomoFade = 0;
+    fadeInAlpha = 1;
+    ctfFlag = null; ctfScores = {}; ctfHoldTimer = 0; ctfBonusTimer = 0;
+    raceData = null;
+    resetScoring();
+    generateTerrain();
+    spawnCars();
+}
+
 function startGame() {
     // Hide all menu steps
     for (var i = 2; i <= 5; i++) {

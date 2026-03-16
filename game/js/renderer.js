@@ -110,23 +110,39 @@ function drawTerrain() {
             traceCurvyPath();
             ctx.stroke();
 
-            // Edge lines
+            // Edge lines — offset the same quadratic curves used for the road surface
+            function offsetPoint(i, side) {
+                let dx, dy;
+                if (i === 0) { dx = pts[1].x - pts[0].x; dy = pts[1].y - pts[0].y; }
+                else if (i >= pts.length - 1) { dx = pts[pts.length-1].x - pts[pts.length-2].x; dy = pts[pts.length-1].y - pts[pts.length-2].y; }
+                else { dx = pts[i+1].x - pts[i-1].x; dy = pts[i+1].y - pts[i-1].y; }
+                let len = Math.hypot(dx, dy) || 1;
+                let off = (road.width / 2 - 2) * side;
+                return { x: pts[i].x + (-dy / len) * off, y: pts[i].y + (dx / len) * off };
+            }
+
             for (let side = -1; side <= 1; side += 2) {
                 ctx.strokeStyle = road.edgeColor || 'rgba(255,255,255,.2)';
                 ctx.lineWidth = 2.5;
                 ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.setLineDash([30, 20]);
                 ctx.beginPath();
-                // Offset path by road.width/2 on each side — approximate with perpendicular offset
-                for (let i = 0; i < pts.length; i++) {
-                    let dx, dy;
-                    if (i < pts.length - 1) { dx = pts[i+1].x - pts[i].x; dy = pts[i+1].y - pts[i].y; }
-                    else { dx = pts[i].x - pts[i-1].x; dy = pts[i].y - pts[i-1].y; }
-                    let len = Math.hypot(dx, dy) || 1;
-                    let nx = -dy / len * (road.width / 2 - 2) * side;
-                    let ny = dx / len * (road.width / 2 - 2) * side;
-                    if (i === 0) ctx.moveTo(pts[i].x + nx, pts[i].y + ny);
-                    else ctx.lineTo(pts[i].x + nx, pts[i].y + ny);
+                let p0 = offsetPoint(0, side);
+                ctx.moveTo(p0.x, p0.y);
+                for (let i = 1; i < pts.length; i++) {
+                    let pi = offsetPoint(i, side);
+                    if (i < pts.length - 1) {
+                        let pi1 = offsetPoint(i + 1, side);
+                        let mx = (pi.x + pi1.x) / 2;
+                        let my = (pi.y + pi1.y) / 2;
+                        ctx.quadraticCurveTo(pi.x, pi.y, mx, my);
+                    } else {
+                        let prev = offsetPoint(i - 1, side);
+                        ctx.quadraticCurveTo(prev.x * 0.3 + pi.x * 0.7,
+                                             prev.y * 0.3 + pi.y * 0.7,
+                                             pi.x, pi.y);
+                    }
                 }
                 ctx.stroke();
                 ctx.setLineDash([]);

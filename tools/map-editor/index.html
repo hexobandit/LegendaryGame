@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LDD Map Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="editor">
+    <!-- ── Toolbar ── -->
+    <div id="toolbar">
+        <button class="tool-btn active" data-tool="select" title="Select / Move (V)">Select</button>
+        <button class="tool-btn" data-tool="object" title="Place Object (O)">Object</button>
+        <button class="tool-btn" data-tool="road" title="Draw Road (R)">Road</button>
+        <button class="tool-btn" data-tool="wall" title="Draw Wall (W)">Wall</button>
+        <button class="tool-btn" data-tool="surface" title="Paint Surface (S)">Surface</button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser (E)">Eraser</button>
+        <button class="tool-btn" data-tool="spawn" title="Set Spawn Point (P)">Spawn</button>
+
+        <div class="separator"></div>
+
+        <button class="action-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+        <button class="action-btn" id="btn-zoom-in" title="Zoom In">+</button>
+        <button class="action-btn" id="btn-fit" title="Fit to Arena (Home)">Fit</button>
+
+        <div class="separator"></div>
+
+        <button class="action-btn" id="btn-grid" title="Toggle Grid (G)">Grid</button>
+        <button class="action-btn" id="btn-snap" title="Toggle Snap (N)">Snap</button>
+
+        <div class="separator"></div>
+
+        <button class="action-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button class="action-btn" id="btn-redo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+
+        <div class="separator"></div>
+
+        <button class="action-btn" id="btn-new" title="New Map">New</button>
+        <button class="action-btn" id="btn-import" title="Import Map">Import</button>
+        <button class="action-btn export-btn" id="btn-export" title="Export Map (Ctrl+E)">Export</button>
+    </div>
+
+    <!-- ── Main Area ── -->
+    <div id="main-area">
+        <!-- Left: Object & Surface Palette -->
+        <div id="left-panel">
+            <div id="object-palette"></div>
+            <div id="surface-palette"></div>
+        </div>
+
+        <!-- Center: Canvas -->
+        <div id="canvas-container">
+            <canvas id="editor-canvas"></canvas>
+        </div>
+
+        <!-- Right: Properties & Map Settings -->
+        <div id="right-panel">
+            <div id="properties-panel">
+                <div class="panel-empty">Select an object to edit properties</div>
+            </div>
+            <div id="map-settings"></div>
+        </div>
+    </div>
+
+    <!-- ── Status Bar ── -->
+    <div id="status-bar">
+        <div>
+            <span id="status-pos">Mouse: (0, 0)</span>
+            <span id="status-counts">Objects: 0  Surfaces: 0  Roads: 0</span>
+        </div>
+        <div>
+            <span class="toolbar-label">V:Select O:Object R:Road W:Wall S:Surface E:Eraser P:Spawn | G:Grid N:Snap | Del:Delete</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Export Modal ── -->
+<div id="export-modal" class="modal-overlay">
+    <div class="modal-inner">
+        <h2>EXPORT MAP</h2>
+        <textarea id="export-text" readonly></textarea>
+        <div class="modal-buttons">
+            <button class="secondary-btn" onclick="hideExportModal()">Close</button>
+            <button class="secondary-btn" onclick="downloadExport()">Download .js</button>
+            <button class="primary-btn" id="copy-btn" onclick="copyExport()">COPY TO CLIPBOARD</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Import Modal ── -->
+<div id="import-modal" class="modal-overlay">
+    <div class="modal-inner">
+        <h2>IMPORT MAP</h2>
+        <p style="color:#888;margin-bottom:10px;font-size:12px">Paste a map file (MAPS.push({...})) or raw object literal below:</p>
+        <textarea id="import-text" placeholder="Paste map JS file contents or object literal here..."></textarea>
+        <div class="modal-buttons">
+            <button class="secondary-btn" onclick="hideImportModal()">Cancel</button>
+            <button class="primary-btn" onclick="importFromText()">IMPORT</button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts (strict load order) -->
+<script src="js/constants.js"></script>
+<script src="js/state.js"></script>
+<script src="js/history.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/render.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/export.js"></script>
+<script src="js/editor.js"></script>
+
+</body>
+</html>
