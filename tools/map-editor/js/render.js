@@ -130,6 +130,20 @@ function drawSurfaces(ctx) {
             }
         }
 
+        // Surface label
+        ctx.globalAlpha = 1;
+        var slabel = st.label;
+        var sfontSize = Math.max(9, Math.min(13, 11 / view.zoom));
+        ctx.font = 'bold ' + sfontSize + 'px Arial';
+        ctx.textAlign = 'center';
+        var stw = ctx.measureText(slabel).width;
+        var spx = 4 / view.zoom, spy = 2 / view.zoom;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        roundedRect(ctx, s.x - stw / 2 - spx, s.y - sfontSize * 0.4 - spy, stw + spx * 2, sfontSize + spy * 2, 3 / view.zoom);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(slabel, s.x, s.y + sfontSize * 0.4);
+
         ctx.restore();
     }
 }
@@ -220,6 +234,21 @@ function drawRoads(ctx) {
                 ctx.stroke();
             }
         }
+
+        // Road label at midpoint
+        var midIdx = Math.floor(road.points.length / 2);
+        var mp = road.points[midIdx];
+        var rlabel = 'Road #' + ri + ' (' + (road.surface || 'tarmac') + ', w:' + (road.width || 60) + ')';
+        var rfontSize = Math.max(9, Math.min(13, 11 / view.zoom));
+        ctx.font = 'bold ' + rfontSize + 'px Arial';
+        ctx.textAlign = 'center';
+        var rtw = ctx.measureText(rlabel).width;
+        var rpx = 4 / view.zoom, rpy = 2 / view.zoom;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        roundedRect(ctx, mp.x - rtw / 2 - rpx, mp.y - rfontSize * 0.4 - rpy - (road.width || 60) / 2 - 10 / view.zoom, rtw + rpx * 2, rfontSize + rpy * 2, 3 / view.zoom);
+        ctx.fill();
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillText(rlabel, mp.x, mp.y + rfontSize * 0.4 - (road.width || 60) / 2 - 10 / view.zoom);
     }
 }
 
@@ -411,18 +440,39 @@ function drawObjects(ctx) {
             }
         }
 
-        // Label
-        if (view.zoom > 0.15) {
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.font = (10 / view.zoom) + 'px Arial';
-            ctx.textAlign = 'center';
-            var labelY = obj.y + (obj.r || def.fixedR || def.defaultR || 20) + 12 / view.zoom;
-            if (def.shape === 'line') labelY = ((obj.y + (obj.y2 || obj.y)) / 2) - 10 / view.zoom;
-            ctx.fillText(def.label, obj.x, labelY);
-        }
+        // Label — always visible, bold, with background
+        var labelText = def.label;
+        var fontSize = Math.max(9, Math.min(13, 11 / view.zoom));
+        ctx.font = 'bold ' + fontSize + 'px Arial';
+        ctx.textAlign = 'center';
+        var labelY = obj.y + (obj.r || def.fixedR || def.defaultR || 20) + (14 / view.zoom);
+        if (def.shape === 'line') labelY = ((obj.y + (obj.y2 || obj.y)) / 2) - (12 / view.zoom);
+        if (def.shape === 'ramp' || def.shape === 'bump') labelY = obj.y + (obj.h || def.defaultH || 40) / 2 + (14 / view.zoom);
+        // Background pill
+        var tw = ctx.measureText(labelText).width;
+        var px = 4 / view.zoom, py = 2 / view.zoom;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        roundedRect(ctx, obj.x - tw / 2 - px, labelY - fontSize * 0.8 - py, tw + px * 2, fontSize + py * 2, 3 / view.zoom);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(labelText, obj.x, labelY);
 
         ctx.restore();
     }
+}
+
+function roundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
 }
 
 function drawSpawnPoint(ctx) {
